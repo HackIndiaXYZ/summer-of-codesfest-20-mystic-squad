@@ -225,7 +225,7 @@ export default function Dashboard() {
                     Live Request Feed
                   </h2>
                 </div>
-                <CommandFeed />
+                <CommandFeed commands={commands} loading={!commands} />
               </div>
             </div>
           )}
