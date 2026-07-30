@@ -4,4 +4,5 @@
 
 void setupFirebaseTask();
 void firebaseTask(void *pvParameters);
-String generateHardwareId();
+String getHardwareId();
+void syncDeviceStatus();

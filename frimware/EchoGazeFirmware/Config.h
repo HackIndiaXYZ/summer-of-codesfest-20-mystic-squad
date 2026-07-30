@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 // EchoGaze Firmware Configuration
-#define ECHOGAZE_VERSION "2.5.0-PRO"
+#define ECHOGAZE_VERSION "3.0.0-LIVE"
 
 // Hardware Pin Definitions (ESP32 DevKit V1 Pinout)
 #define IR_RECEIVER_PIN 34 // Digital input for IR sensor

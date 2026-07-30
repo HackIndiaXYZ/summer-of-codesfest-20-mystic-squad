@@ -9,10 +9,55 @@ export function useDevice() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!database || !user) {
+    if (!database) {
       setLoading(false);
       setDevices([]);
       return;
+    }
+
+    if (!user) {
+      // PREVIEW MODE: Find any deviceStatus/devices under any user
+      const usersRef = ref(database, 'users');
+      const unsubscribe = onValue(usersRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const usersData = snapshot.val();
+          let allDevices = [];
+          
+          Object.keys(usersData).forEach(uid => {
+            const deviceStatus = usersData[uid].deviceStatus;
+            if (deviceStatus) {
+               // If Firebase delivers a deviceStatus snapshot, the device has been active
+               const isRecent = !!deviceStatus.uptime;
+               allDevices.push({
+                 id: uid,
+                 name: `EchoGaze Unit ${uid.slice(-4)}`,
+                 status: isRecent ? 'online' : 'offline',
+                 lastSeen: Date.now(), // ESP32 sends millis() (uptime), use current time as "last seen"
+                 firmwareVersion: deviceStatus.firmware_version || deviceStatus.firmwareVersion || '3.0.0',
+                 battery: 100,
+                 wifi_rssi: deviceStatus.wifi_rssi,
+                 uptime: deviceStatus.uptime,
+                 config: { scanSpeed: 50, sensitivity: 50 }
+               });
+            }
+            const userDevices = usersData[uid].devices;
+            if (userDevices) {
+              Object.keys(userDevices).forEach(devId => {
+                allDevices.push({
+                  id: devId,
+                  ...userDevices[devId]
+                });
+              });
+            }
+          });
+          
+          setDevices(allDevices);
+        } else {
+          setDevices([]);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
     }
 
     const devicesRef = ref(database, `users/${user.uid}/devices`);

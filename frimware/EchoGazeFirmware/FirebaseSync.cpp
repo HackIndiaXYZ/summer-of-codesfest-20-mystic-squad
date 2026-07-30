@@ -5,8 +5,6 @@
 #include <ArduinoJson.h>
 
 static String cachedHardwareId = "";
-static HTTPClient http;
-static bool httpInitialized = false;
 
 String getHardwareId() {
     if (cachedHardwareId == "") {
@@ -19,24 +17,63 @@ String getHardwareId() {
 
 static void syncToFirebase(const char* command, unsigned long timestamp) {
     if (WiFi.status() == WL_CONNECTED) {
-        if (!httpInitialized) {
-            String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json";
-            http.begin(fullUrl);
-            http.setReuse(true); // Keep connection alive to avoid 1500ms TLS handshake latency
-            httpInitialized = true;
-        }
-        
+        HTTPClient http;
+        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json";
+        http.begin(fullUrl);
         http.addHeader("Content-Type", "application/json");
-        
-        StaticJsonDocument<128> doc;
+
+        StaticJsonDocument<256> doc;
+        String cmdStr = String(command);
         doc["event"] = command;
         doc["timestamp"] = timestamp;
         doc["device_id"] = getHardwareId();
         
+        if (cmdStr == "single_click") {
+            doc["phrase"] = "Patient triggered single click";
+            doc["label"] = "Single Click";
+            doc["category"] = "General";
+            doc["emoji"] = "👆";
+            doc["status"] = "COMPLETED";
+        } else if (cmdStr == "double_click") {
+            doc["phrase"] = "Patient triggered double click";
+            doc["label"] = "Double Click";
+            doc["category"] = "General";
+            doc["emoji"] = "👆👆";
+            doc["status"] = "COMPLETED";
+        } else if (cmdStr == "emergency_sos") {
+            doc["phrase"] = "Patient triggered emergency SOS";
+            doc["label"] = "Emergency SOS";
+            doc["category"] = "Emergency";
+            doc["emoji"] = "🚨";
+            doc["status"] = "EMERGENCY";
+        }
+
         String payload;
         serializeJson(doc, payload);
-        
+
         http.POST(payload);
+        http.end();
+    }
+}
+
+void syncDeviceStatus() {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/deviceStatus.json";
+        http.begin(fullUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        StaticJsonDocument<256> doc;
+        doc["uptime"] = millis();
+        doc["wifi_rssi"] = WiFi.RSSI();
+        doc["firmware_version"] = ECHOGAZE_VERSION;
+        doc["lastSeen"] = millis();
+
+        String payload;
+        serializeJson(doc, payload);
+
+        http.PUT(payload);
+        http.end();
     }
 }
 
@@ -45,9 +82,10 @@ void setupFirebaseTask() {
 }
 
 void firebaseTask(void *pvParameters) {
+    unsigned long lastStatusSync = 0;
     for (;;) {
         EventType ev;
-        if (xQueueReceive(firebaseQueue, &ev, portMAX_DELAY) == pdPASS) {
+        if (xQueueReceive(firebaseQueue, &ev, pdMS_TO_TICKS(1000)) == pdPASS) {
             const char* evtStr = "unknown";
             switch(ev) {
                 case EVT_SINGLE_CLICK:
@@ -60,6 +98,11 @@ void firebaseTask(void *pvParameters) {
             if (String(evtStr) != "unknown") {
                 syncToFirebase(evtStr, millis());
             }
+        }
+        
+        if (millis() - lastStatusSync >= 30000) {
+            syncDeviceStatus();
+            lastStatusSync = millis();
         }
     }
 }
