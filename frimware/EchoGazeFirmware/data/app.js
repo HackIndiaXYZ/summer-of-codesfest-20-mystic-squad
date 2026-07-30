@@ -1,474 +1,453 @@
+/* ==========================================================================
+   EchoGaze — ESP32 Firmware Interface
+   Column → item auto-scanning AAC board driven by a single physical switch.
+   ========================================================================== */
 (function () {
   'use strict';
 
-  // State Machine Constants
-  const UI_STATE = {
-    COLUMN_SCAN: 'COLUMN_SCAN',
-    ITEM_ZOOM: 'ITEM_ZOOM'
+  const NUM_COLS = 4;
+  const NUM_ROWS = 4;
+  const DOUBLE_TAP_MS = 380;  // max gap between taps that counts as "select"
+  const SOS_WINDOW_MS = 3000; // window for counting the 4-tap SOS gesture
+
+  /* ---------------------------------------------------------------------
+     State
+     ------------------------------------------------------------------- */
+  const state = {
+    mode: 'COLUMN_SCAN',   // COLUMN_SCAN | ITEM_SCAN
+    colIndex: 0,
+    itemIndex: 0,
+    scanInterval: 2500,
+    scanTimer: null,
+    dwellStart: 0,
+    progressRaf: null,
+    voiceReadout: true,
+    voiceCommandsOn: true,
+    autoScanEnabled: false, // auto-scan cycling is off by default; enable in Settings
+    sosTaps: [],
+    lastTapTime: 0,
+    singleTapTimer: null,
+    suspended: false, // true during confirm / SOS overlays
   };
 
-  const Store = {
-    state: {
-      uiState: UI_STATE.COLUMN_SCAN,
-      colIndex: 0, // 0..3
-      itemIndex: 0, // 0..N
-      voiceReadout: true,
-      deviceCode: 'ECHO-A4F2',
-      isEmergency: false,
-      theme: 'dark',
-      wsConnected: false
-    }
+  /* ---------------------------------------------------------------------
+     DOM references
+     ------------------------------------------------------------------- */
+  const $ = (id) => document.getElementById(id);
+
+  const dom = {
+    columns: [...document.querySelectorAll('.column')],
+    statusText: $('status-text'),
+    uiStateLabel: $('ui-state-label'),
+    scanProgressBar: $('scan-progress-bar'),
+
+    themeToggle: $('theme-toggle'),
+    settingsBtn: $('settings-btn'),
+    settingsModal: $('settings-modal'),
+    closeSettings: $('close-settings'),
+    saveSettings: $('save-settings'),
+    speedSlider: $('speed-slider'),
+    speedVal: $('speed-val'),
+    voiceReadoutChk: $('voice-readout-chk'),
+    autoscanEnableChk: $('autoscan-enable-chk'),
+    deviceCodeInput: $('device-code-input'),
+
+    voiceBtn: $('voice-btn'),
+    emergencyBtn: $('emergency-btn'),
+
+    switchBtn: $('switch-btn'),
+    switchRing: $('switch-ring'),
+    lastAction: $('last-action'),
+    scanPosLabel: $('scan-pos-label'),
+    sosDots: [...document.querySelectorAll('#sos-dots span')],
+
+    btnSelect: $('btn-select'),
+    btnBack: $('btn-back'),
+
+    toastContainer: $('toast-container'),
+    timeDisplay: $('time-display'),
+
+    confirmOverlay: $('confirm-overlay'),
+    confirmMsg: $('confirm-msg'),
+    sosOverlay: $('sos-overlay'),
+
+    speechBanner: $('speech-banner'),
+    speechTranscript: $('speech-transcript'),
   };
 
-  const $ = (sel, ctx = document) => ctx.querySelector(sel);
-  const $$ = (sel, ctx = document) => ctx.querySelectorAll(sel);
+  // 4x4 grid of card elements, addressed as cardEls[col][row]
+  const cardEls = Array.from({ length: NUM_COLS }, (_, col) =>
+    Array.from({ length: NUM_ROWS }, (_, row) => $(`card-${col}-${row}`))
+  );
 
-  // WebSocket Connection to ESP32 Hardware Task
-  function initWebSocket() {
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.hostname}:81/`;
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        Store.state.wsConnected = true;
-        const connBadge = $('#connection-badge');
-        if (connBadge) {
-          connBadge.className = 'badge badge--online';
-          connBadge.innerHTML = '<span class="online-dot"></span> ESP32 Webserver Online';
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'single_click' || data.type === 'blink') {
-            handleSingleButtonPress();
-          } else if (data.type === 'double_click' || data.type === 'double_blink') {
-            handleDoubleClick();
-          } else if (data.type === 'live_click') {
-            handleLiveClick(data.count);
-          } else if (data.type === 'long_hold') {
-            handleSingleButtonLongHold();
-          } else if (data.type === 'emergency_sos') {
-            triggerEmergency();
-          }
-        } catch (e) {}
-      };
-
-      ws.onclose = () => {
-        Store.state.wsConnected = false;
-        setTimeout(initWebSocket, 3000);
-      };
-    } catch (e) {
-      console.log('WS offline mode');
-    }
+  /* ---------------------------------------------------------------------
+     Toasts
+     ------------------------------------------------------------------- */
+  function toast(message, type) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (type === 'error' ? ' toast--error' : '');
+    el.textContent = message;
+    dom.toastContainer.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .3s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 320);
+    }, 2600);
   }
 
-  // Sound click feedback
-  function playClickSound() {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(640, ctx.currentTime);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } catch (e) {}
-  }
-
-  // Web Audio Synth Buzzer for SOS Alarm
-  function playEmergencyBuzzer() {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
-
-      gain.gain.setValueAtTime(0.8, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.8);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  // Text-To-Speech Output
+  /* ---------------------------------------------------------------------
+     Speech (voice readout of selections / status)
+     ------------------------------------------------------------------- */
   function speak(text) {
-    if (!Store.state.voiceReadout) return;
-    if ('speechSynthesis' in window) {
+    if (!state.voiceReadout || !('speechSynthesis' in window)) return;
+    try {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.1;
-      window.speechSynthesis.speak(u);
-    }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.95;
+      window.speechSynthesis.speak(utter);
+    } catch (e) { /* speech synthesis unavailable — fail silently */ }
   }
 
-  // Toast announcement
-  function showToast(msg, type = 'info') {
-    const container = $('#toast-container');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = `toast toast--${type}`;
-    toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-  }
-
-  // Theme Toggle Management
-  function initTheme() {
-    const saved = localStorage.getItem('echogaze-firmware-theme') || 'dark';
-    Store.state.theme = saved;
-    if (saved === 'light') {
-      document.body.classList.add('light');
-    } else {
-      document.body.classList.remove('light');
-    }
-  }
-
-  function toggleTheme() {
-    const next = Store.state.theme === 'dark' ? 'light' : 'dark';
-    Store.state.theme = next;
-    localStorage.setItem('echogaze-firmware-theme', next);
-    if (next === 'light') {
-      document.body.classList.add('light');
-    } else {
-      document.body.classList.remove('light');
-    }
-    showToast(`Theme set to ${next.toUpperCase()}`, 'info');
-  }
-
-  // Settings Modal Controls
-  function openSettingsModal() {
-    const modal = $('#settings-modal');
-    if (modal) {
-      $('#speed-slider').value = Store.state.scanSpeed;
-      $('#speed-val').textContent = (Store.state.scanSpeed / 1000).toFixed(1) + 's';
-      $('#voice-readout-chk').checked = Store.state.voiceReadout;
-      modal.classList.remove('hidden');
-    }
-  }
-
-  function closeSettingsModal() {
-    const modal = $('#settings-modal');
-    if (modal) modal.classList.add('hidden');
-  }
-
-  function saveSettings() {
-    const newSpeed = parseInt($('#speed-slider').value);
-    const newVoice = $('#voice-readout-chk').checked;
-
-    Store.state.scanSpeed = newSpeed;
-    Store.state.voiceReadout = newVoice;
-    localStorage.setItem('echogaze-scan-speed', newSpeed);
-
-    showToast('Settings saved successfully', 'success');
-    closeSettingsModal();
-  }
-
-  // Get total rows in current column
-  function getColumnItemsCount(c) {
-    const colItems = $(`#col-items-${c}`);
-    return colItems ? colItems.children.length : 3;
-  }
-
-  // Speak currently highlighted option
-  function speakHighlighted() {
-    const { uiState, colIndex, itemIndex, isEmergency } = Store.state;
-    if (isEmergency) return;
-
-    if (uiState === UI_STATE.COLUMN_SCAN) {
-      speak(`Column ${colIndex + 1}`);
-    } else {
-      const cardEl = $(`#card-${colIndex}-${itemIndex}`);
-      if (cardEl) {
-        const title = cardEl.querySelector('.card__title').textContent;
-        speak(title);
-      }
-    }
-  }
-
-  // Update UI Render
+  /* ---------------------------------------------------------------------
+     Rendering
+     ------------------------------------------------------------------- */
   function render() {
-    const { uiState, colIndex, itemIndex } = Store.state;
+    dom.columns.forEach((colEl, ci) => {
+      const isActiveCol = ci === state.colIndex;
+      colEl.classList.toggle('col-active', isActiveCol);
 
-    // Update Status Bar
-    const stateLabel = $('#ui-state-label');
-    const statusText = $('#status-text');
+      cardEls[ci].forEach((cardEl, ri) => {
+        if (!cardEl) return;
+        const isScanTarget =
+          state.mode === 'ITEM_SCAN' && ci === state.colIndex && ri === state.itemIndex;
+        cardEl.classList.toggle('card-active', isScanTarget);
+      });
+    });
 
-    if (stateLabel) {
-      stateLabel.textContent = uiState === UI_STATE.COLUMN_SCAN
-        ? `COLUMN SCANNING (Col ${colIndex + 1})`
-        : `ZOOMED COLUMN ${colIndex + 1} (Item ${itemIndex + 1})`;
+    const colName = dom.columns[state.colIndex]
+      .querySelector('.column-header')
+      .textContent.trim()
+      .replace(/^\S+\s*/, ''); // strip the leading dot glyph
+
+    if (state.mode === 'COLUMN_SCAN') {
+      dom.uiStateLabel.textContent = 'COLUMN SCAN Mode';
+      dom.statusText.textContent = `State: COLUMN_SCAN — scanning "${colName}" · double-tap to zoom in`;
+      dom.scanPosLabel.textContent = `Col ${state.colIndex + 1} · ${colName}`;
+    } else {
+      const card = cardEls[state.colIndex][state.itemIndex];
+      const title = card ? card.querySelector('.card__title').textContent.trim() : '';
+      dom.uiStateLabel.textContent = 'ITEM SCAN Mode';
+      dom.statusText.textContent = `State: ITEM_SCAN — "${colName}" → double-tap to select "${title}"`;
+      dom.scanPosLabel.textContent = `Col ${state.colIndex + 1} · Item ${state.itemIndex + 1}`;
     }
-
-    if (statusText) {
-      statusText.textContent = uiState === UI_STATE.COLUMN_SCAN
-        ? `Column ${colIndex + 1} highlighted - Press 1-Button to Zoom | Tap screen to bypass`
-        : `Column ${colIndex + 1} Zoomed: Item ${itemIndex + 1} highlighted - Press 1-Button to Select | Hold to Back`;
-    }
-
-    // Update Columns & Cards active classes
-    for (let c = 0; c < 4; c++) {
-      const colEl = $(`#col-${c}`);
-      if (!colEl) continue;
-
-      const isColActive = colIndex === c;
-      if (isColActive) {
-        colEl.classList.add('col-active');
-      } else {
-        colEl.classList.remove('col-active');
-      }
-
-      const rowCount = getColumnItemsCount(c);
-      for (let r = 0; r < rowCount; r++) {
-        const cardEl = $(`#card-${c}-${r}`);
-        if (!cardEl) continue;
-
-        if (isColActive && uiState === UI_STATE.ITEM_ZOOM && itemIndex === r) {
-          cardEl.classList.add('card-active');
-          cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-          cardEl.classList.remove('card-active');
-        }
-      }
-    }
-
-    speakHighlighted();
   }
 
-  // 1-BUTTON MAIN INPUT CONTROL: Single press = SELECT / ZOOM
-  function handleSingleButtonPress() {
-    playClickSound();
-    const { uiState, colIndex, itemIndex } = Store.state;
-
-    if (uiState === UI_STATE.COLUMN_SCAN) {
-      Store.state.uiState = UI_STATE.ITEM_ZOOM;
-      Store.state.itemIndex = 0;
+  /* ---------------------------------------------------------------------
+     Auto-scan timer + progress bar
+     ------------------------------------------------------------------- */
+  function stepScan() {
+    if (state.mode === 'COLUMN_SCAN') {
+      state.colIndex = (state.colIndex + 1) % NUM_COLS;
     } else {
-      const selectedCard = $(`#card-${colIndex}-${itemIndex}`);
-      const title = selectedCard ? selectedCard.querySelector('.card__title').textContent : 'Option';
-      const phrase = selectedCard ? selectedCard.querySelector('.card__phrase').textContent : title;
-
-      if (title.toUpperCase().includes('EMERGENCY')) {
-        triggerEmergency();
-      } else {
-        speak(phrase);
-        showToast(`Selected: ${title}`, 'success');
-      }
-
-      Store.state.uiState = UI_STATE.COLUMN_SCAN;
+      state.itemIndex = (state.itemIndex + 1) % NUM_ROWS;
     }
     render();
   }
 
-  // 2-BUTTON OR DOUBLE CLICK: SKIP / ADVANCE
-  function handleDoubleClick() {
-    playClickSound();
-    const { uiState, colIndex, itemIndex } = Store.state;
-    if (uiState === UI_STATE.COLUMN_SCAN) {
-      Store.state.colIndex = (colIndex + 1) % 4;
-    } else {
-      const maxRows = getColumnItemsCount(Store.state.colIndex);
-      Store.state.itemIndex = (itemIndex + 1) % maxRows;
-    }
-    render();
+  function tickProgress() {
+    if (state.suspended) return;
+    const elapsed = performance.now() - state.dwellStart;
+    const pct = Math.min(100, (elapsed / state.scanInterval) * 100);
+    dom.scanProgressBar.style.width = pct + '%';
+    state.progressRaf = requestAnimationFrame(tickProgress);
   }
 
-  let bubbleTimeout;
-  function handleLiveClick(count) {
-    const bubble = $('#live-click-bubble');
-    if (bubble) {
-      bubble.textContent = count;
-      bubble.classList.remove('hidden');
-      bubble.classList.add('pop');
-      setTimeout(() => bubble.classList.remove('pop'), 200);
-      
-      clearTimeout(bubbleTimeout);
-      bubbleTimeout = setTimeout(() => {
-        bubble.classList.add('hidden');
-      }, 1000);
-    }
+  function restartAutoScan() {
+    clearInterval(state.scanTimer);
+    cancelAnimationFrame(state.progressRaf);
+    dom.scanProgressBar.style.width = '0%';
+    if (state.suspended || !state.autoScanEnabled) return;
+    state.dwellStart = performance.now();
+    state.progressRaf = requestAnimationFrame(tickProgress);
+    state.scanTimer = setInterval(() => {
+      stepScan();
+      state.dwellStart = performance.now();
+    }, state.scanInterval);
   }
 
-  // Long press (>800ms) = BACK / UNZOOM
-  function handleSingleButtonLongHold() {
-    playClickSound();
-    if (Store.state.uiState === UI_STATE.ITEM_ZOOM) {
-      Store.state.uiState = UI_STATE.COLUMN_SCAN;
+  function pauseAutoScan() {
+    clearInterval(state.scanTimer);
+    cancelAnimationFrame(state.progressRaf);
+    dom.scanProgressBar.style.width = '0%';
+  }
+
+  /* ---------------------------------------------------------------------
+     Core actions: advance / select / back
+     ------------------------------------------------------------------- */
+  function advance() {
+    if (state.suspended) return;
+    stepScan();
+    restartAutoScan();
+  }
+
+  function selectCurrent() {
+    if (state.suspended) return;
+
+    if (state.mode === 'COLUMN_SCAN') {
+      state.mode = 'ITEM_SCAN';
+      state.itemIndex = 0;
       render();
+      restartAutoScan();
+      return;
+    }
+
+    const card = cardEls[state.colIndex][state.itemIndex];
+    if (!card) return;
+
+    if (card.id === 'card-3-3') { // Emergency SOS card
+      triggerSOS();
+      return;
+    }
+
+    const title = card.querySelector('.card__title').textContent.trim();
+    const phrase = card.querySelector('.card__phrase').textContent.trim();
+    fireSelection(title, phrase);
+  }
+
+  function fireSelection(title, phrase) {
+    state.suspended = true;
+    pauseAutoScan();
+    dom.confirmMsg.textContent = `Sending "${title}"`;
+    dom.confirmOverlay.classList.add('show');
+    speak(phrase);
+    toast(`Sent: ${title}`);
+
+    setTimeout(() => {
+      dom.confirmOverlay.classList.remove('show');
+      state.mode = 'COLUMN_SCAN';
+      state.colIndex = 0;
+      state.itemIndex = 0;
+      state.suspended = false;
+      render();
+      restartAutoScan();
+    }, 1500);
+  }
+
+  function back() {
+    if (state.suspended) return;
+    if (state.mode === 'ITEM_SCAN') {
+      state.mode = 'COLUMN_SCAN';
+      render();
+      restartAutoScan();
     }
   }
 
-  // TOUCH BYPASS CONTROL: Directly selecting an item on screen
-  function handleTouchBypassItem(c, r) {
-    playClickSound();
-    Store.state.colIndex = c;
-    Store.state.itemIndex = r;
-    const selectedCard = $(`#card-${c}-${r}`);
-    const title = selectedCard ? selectedCard.querySelector('.card__title').textContent : 'Option';
-    const phrase = selectedCard ? selectedCard.querySelector('.card__phrase').textContent : title;
-
-    if (title.toUpperCase().includes('EMERGENCY')) {
-      triggerEmergency();
-    } else {
-      speak(phrase);
-      showToast(`Selected: ${title}`, 'success');
-    }
-
-    Store.state.uiState = UI_STATE.COLUMN_SCAN;
-    render();
-  }
-
-  // Emergency Trigger
-  function triggerEmergency() {
-    Store.state.isEmergency = true;
-    playEmergencyBuzzer();
-    speak('EMERGENCY SOS ACTIVATED. CARETAKER NOTIFIED.');
-    showToast('🚨 EMERGENCY ALERT ACTIVATED!', 'error');
-
+  /* ---------------------------------------------------------------------
+     Emergency SOS
+     ------------------------------------------------------------------- */
+  function triggerSOS() {
+    state.suspended = true;
+    pauseAutoScan();
     document.body.classList.add('emergency-flash');
-    setTimeout(() => document.body.classList.remove('emergency-flash'), 5000);
+    dom.sosOverlay.classList.add('show');
+    toast('EMERGENCY SOS sent to caregiver', 'error');
+    speak('Emergency. Sending SOS to caregiver now.');
+
+    setTimeout(() => {
+      dom.sosOverlay.classList.remove('show');
+      document.body.classList.remove('emergency-flash');
+      state.sosTaps = [];
+      updateSosDots();
+      state.mode = 'COLUMN_SCAN';
+      state.colIndex = 0;
+      state.itemIndex = 0;
+      state.suspended = false;
+      render();
+      restartAutoScan();
+    }, 2600);
   }
 
-  // 4-Click Detector
-  let clickTimes = [];
-  function registerClick() {
+  function updateSosDots() {
     const now = Date.now();
-    clickTimes.push(now);
-    clickTimes = clickTimes.filter(t => now - t <= 3000);
-    if (clickTimes.length >= 4) {
-      clickTimes = [];
-      triggerEmergency();
-    }
+    state.sosTaps = state.sosTaps.filter((t) => now - t < SOS_WINDOW_MS);
+    dom.sosDots.forEach((d, i) => d.classList.toggle('lit', i < state.sosTaps.length));
   }
 
-  // Clock
-  function updateTime() {
-    const timeEl = $('#time-display');
-    if (timeEl) {
-      const now = new Date();
-      timeEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  /* ---------------------------------------------------------------------
+     Single-switch gesture detection: tap = next · double-tap = select · 4-tap SOS
+     ------------------------------------------------------------------- */
+  function registerTap() {
+    const now = Date.now();
+    state.sosTaps.push(now);
+    updateSosDots();
+
+    if (state.sosTaps.length >= 4) {
+      dom.lastAction.textContent = 'SOS (4 taps / 3s)';
+      state.sosTaps = [];
+      triggerSOS();
+      return;
     }
-  }
 
-  function updateAIContext() {
-    const hour = new Date().getHours();
-    let timeOfDay = 'Night';
-    if (hour >= 6 && hour < 12) timeOfDay = 'Morning';
-    else if (hour >= 12 && hour < 18) timeOfDay = 'Afternoon';
-    else if (hour >= 18 && hour < 22) timeOfDay = 'Evening';
-    
-    const updates = {
-      'card-0-0': { title: `${timeOfDay} Meal 🍲`, phrase: `I need my ${timeOfDay.toLowerCase()} meal` },
-      'card-1-2': { title: timeOfDay === 'Night' ? 'Sleep 😴' : 'Rest 🛋️', phrase: `I want to rest for the ${timeOfDay.toLowerCase()}` }
-    };
-
-    for (const [id, data] of Object.entries(updates)) {
-      const titleEl = $(`#${id} .card__title`);
-      const phraseEl = $(`#${id} .card__phrase`);
-      if (titleEl) titleEl.textContent = data.title;
-      if (phraseEl) phraseEl.textContent = data.phrase;
+    if (now - state.lastTapTime < DOUBLE_TAP_MS) {
+      dom.lastAction.textContent = 'Double-tap → Select';
+      clearTimeout(state.singleTapTimer);
+      state.lastTapTime = 0;
+      selectCurrent();
+      return;
     }
-  }
 
-  // Keypress duration tracker for 1-Button control
-  let keyPressStart = 0;
-
-  // DOM Event Listeners
-  document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    initWebSocket();
-    updateAIContext();
-    render();
-    setInterval(updateTime, 1000);
-    updateTime();
-
-    $('#btn-login')?.addEventListener('click', () => {
-      const pin = $('#pin-input').value;
-      if (pin === '1234') {
-        $('#login-overlay').classList.add('hidden');
-        $('#main-ui').classList.remove('hidden');
-        showToast('Login successful', 'success');
-      } else {
-        showToast('Invalid PIN', 'error');
+    state.lastTapTime = now;
+    clearTimeout(state.singleTapTimer);
+    state.singleTapTimer = setTimeout(() => {
+      if (state.lastTapTime !== 0) {
+        dom.lastAction.textContent = 'Tap → Next';
+        advance();
       }
-    });
+    }, DOUBLE_TAP_MS);
+  }
 
-    $('#theme-toggle')?.addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
-    $('#settings-btn')?.addEventListener('click', (e) => { e.stopPropagation(); openSettingsModal(); });
-    $('#close-settings')?.addEventListener('click', (e) => { e.stopPropagation(); closeSettingsModal(); });
-    $('#save-settings')?.addEventListener('click', (e) => { e.stopPropagation(); saveSettings(); });
+  function pressStartHandler(e) {
+    e.preventDefault();
+    dom.switchRing.style.setProperty('--p', 100);
+  }
 
-    $('#speed-slider')?.addEventListener('input', (e) => {
-      $('#speed-val').textContent = (parseInt(e.target.value) / 1000).toFixed(1) + 's';
-    });
+  function pressEndHandler(e) {
+    e.preventDefault();
+    dom.switchRing.style.setProperty('--p', 0);
+    registerTap();
+  }
 
-    $('#btn-select')?.addEventListener('click', (e) => { e.stopPropagation(); handleSingleButtonPress(); });
-    $('#btn-back')?.addEventListener('click', (e) => { e.stopPropagation(); handleSingleButtonLongHold(); });
-    $('#emergency-btn')?.addEventListener('click', (e) => { e.stopPropagation(); triggerEmergency(); });
+  dom.switchBtn.addEventListener('mousedown', pressStartHandler);
+  dom.switchBtn.addEventListener('mouseup', pressEndHandler);
+  dom.switchBtn.addEventListener('mouseleave', () => dom.switchRing.style.setProperty('--p', 0));
+  dom.switchBtn.addEventListener('touchstart', pressStartHandler, { passive: false });
+  dom.switchBtn.addEventListener('touchend', pressEndHandler, { passive: false });
 
-    // Touch Bypass Event Listeners on Column Cards
-    for (let c = 0; c < 4; c++) {
-      const rowCount = getColumnItemsCount(c);
-      for (let r = 0; r < rowCount; r++) {
-        $(`#card-${c}-${r}`)?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          handleTouchBypassItem(c, r);
-        });
-      }
-    }
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !e.repeat) pressStartHandler(e);
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') pressEndHandler(e);
+  });
 
-    document.addEventListener('click', registerClick);
+  /* ---------------------------------------------------------------------
+     Manual test buttons (mirror hold/double-tap without needing timing)
+     ------------------------------------------------------------------- */
+  dom.btnSelect.addEventListener('click', () => {
+    dom.lastAction.textContent = 'Manual → Select';
+    selectCurrent();
+  });
+  dom.btnBack.addEventListener('click', () => {
+    dom.lastAction.textContent = 'Manual → Back';
+    back();
+  });
 
-    document.addEventListener('keydown', (e) => {
-      registerClick();
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        if (!keyPressStart) keyPressStart = Date.now();
-      } else if (e.key === 'Escape' || e.key === 'Backspace') {
-        e.preventDefault();
-        handleSingleButtonLongHold();
-      } else if (e.key >= '1' && e.key <= '4') {
-        Store.state.colIndex = parseInt(e.key) - 1;
-        Store.state.uiState = UI_STATE.COLUMN_SCAN;
+  /* ---------------------------------------------------------------------
+     Direct touch bypass: tap any card to jump straight to it and send it
+     ------------------------------------------------------------------- */
+  cardEls.forEach((col, ci) => {
+    col.forEach((cardEl, ri) => {
+      if (!cardEl) return;
+      cardEl.addEventListener('click', () => {
+        if (state.suspended) return;
+        state.colIndex = ci;
+        state.itemIndex = ri;
+        state.mode = 'ITEM_SCAN';
+        dom.lastAction.textContent = 'Touch bypass → Select';
         render();
-      } else if (e.key === 'e' || e.key === 'E') {
-        triggerEmergency();
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        if (keyPressStart) {
-          const duration = Date.now() - keyPressStart;
-          keyPressStart = 0;
-          if (duration >= 800) {
-            handleSingleButtonLongHold();
-          } else {
-            handleSingleButtonPress();
-          }
-        }
-      }
+        selectCurrent();
+      });
     });
   });
 
+  /* ---------------------------------------------------------------------
+     Emergency button (manual SOS)
+     ------------------------------------------------------------------- */
+  dom.emergencyBtn.addEventListener('click', () => {
+    dom.lastAction.textContent = 'Manual → SOS';
+    triggerSOS();
+  });
+
+  /* ---------------------------------------------------------------------
+     Settings modal
+     ------------------------------------------------------------------- */
+  function openSettings() {
+    dom.settingsModal.classList.remove('hidden');
+  }
+  function closeSettingsModal() {
+    dom.settingsModal.classList.add('hidden');
+  }
+
+  dom.settingsBtn.addEventListener('click', openSettings);
+  dom.closeSettings.addEventListener('click', closeSettingsModal);
+  dom.settingsModal.addEventListener('click', (e) => {
+    if (e.target === dom.settingsModal) closeSettingsModal();
+  });
+  dom.saveSettings.addEventListener('click', () => {
+    closeSettingsModal();
+    toast('Settings saved to device');
+  });
+
+  dom.speedSlider.addEventListener('input', () => {
+    state.scanInterval = Number(dom.speedSlider.value);
+    dom.speedVal.textContent = (state.scanInterval / 1000).toFixed(1) + 's';
+    restartAutoScan();
+  });
+
+  dom.voiceReadoutChk.addEventListener('change', () => {
+    state.voiceReadout = dom.voiceReadoutChk.checked;
+  });
+
+  dom.autoscanEnableChk.addEventListener('change', () => {
+    state.autoScanEnabled = dom.autoscanEnableChk.checked;
+    if (state.autoScanEnabled) {
+      toast('Auto-scan cycling enabled');
+      restartAutoScan();
+    } else {
+      toast('Auto-scan cycling disabled');
+      pauseAutoScan();
+    }
+  });
+
+  /* ---------------------------------------------------------------------
+     Theme toggle
+     ------------------------------------------------------------------- */
+  dom.themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('light');
+    toast(document.body.classList.contains('light') ? 'Light mode' : 'Dark mode');
+  });
+
+  /* ---------------------------------------------------------------------
+     Voice feedback toggle (reads the sent phrase aloud via device TTS)
+     ------------------------------------------------------------------- */
+  dom.voiceBtn.addEventListener('click', () => {
+    state.voiceCommandsOn = !state.voiceCommandsOn;
+    state.voiceReadout = state.voiceCommandsOn;
+    dom.voiceReadoutChk.checked = state.voiceCommandsOn;
+    dom.voiceBtn.querySelector('span').textContent =
+      'Voice Commands: ' + (state.voiceCommandsOn ? 'ON' : 'OFF');
+    toast('Voice feedback ' + (state.voiceCommandsOn ? 'enabled' : 'disabled'));
+  });
+
+  /* ---------------------------------------------------------------------
+     Clock
+     ------------------------------------------------------------------- */
+  function updateClock() {
+    const now = new Date();
+    dom.timeDisplay.textContent = now.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  updateClock();
+  setInterval(updateClock, 15000);
+
+  /* ---------------------------------------------------------------------
+     Boot
+     ------------------------------------------------------------------- */
+  dom.speedVal.textContent = (state.scanInterval / 1000).toFixed(1) + 's';
+  dom.autoscanEnableChk.checked = state.autoScanEnabled;
+  dom.speechBanner.classList.add('hidden');
+  render();
+  restartAutoScan(); // no-op scan schedule until autoScanEnabled is turned on in Settings
 })();
