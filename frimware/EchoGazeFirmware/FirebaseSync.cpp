@@ -42,10 +42,18 @@ void authenticateFirebase() {
     int httpCode = http.POST(payload);
     if (httpCode == HTTP_CODE_OK) {
         String response = http.getString();
-        StaticJsonDocument<1024> resDoc;
-        deserializeJson(resDoc, response);
-        idToken = resDoc["idToken"].as<String>();
-        long expiresIn = resDoc["expiresIn"].as<long>(); 
+        DynamicJsonDocument resDoc(2048);
+        DeserializationError error = deserializeJson(resDoc, response);
+        if (!error) {
+            idToken = resDoc["idToken"].as<String>();
+            long expiresIn = resDoc["expiresIn"].as<long>(); 
+            tokenExpiry = millis() + ((expiresIn - 300) * 1000); 
+            Serial.println("Firebase authenticated successfully");
+        } else {
+            Serial.print("Firebase auth JSON parse failed: ");
+            Serial.println(error.c_str());
+            idToken = "";
+        }
         tokenExpiry = millis() + ((expiresIn - 300) * 1000); 
         Serial.println("Firebase authenticated successfully");
     } else {
@@ -124,7 +132,7 @@ void syncDeviceStatus() {
 }
 
 void setupFirebaseTask() {
-    xTaskCreatePinnedToCore(firebaseTask, "Firebase Task", 8192, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(firebaseTask, "Firebase Task", 12288, NULL, 1, NULL, 0);
 }
 
 void firebaseTask(void *pvParameters) {
