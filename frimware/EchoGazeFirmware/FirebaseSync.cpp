@@ -74,7 +74,10 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
         StaticJsonDocument<256> doc;
         String cmdStr = String(command);
         doc["event"] = command;
-        doc["timestamp"] = timestamp;
+        
+        JsonObject tsObj = doc.createNestedObject("timestamp");
+        tsObj[".sv"] = "timestamp";
+        
         doc["device_id"] = getHardwareId();
         
         if (cmdStr == "single_click") {
