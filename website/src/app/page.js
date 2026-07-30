@@ -306,7 +306,7 @@ const Footer = () => (
     <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-white/40">
       <div>&copy; {new Date().getFullYear()} EchoGaze. All rights reserved.</div>
       <div className="flex items-center gap-1.5">
-        Licensed under <span className="font-mono bg-white/5 border border-white/10 px-2 py-0.5 rounded text-xs text-white/60">MIT</span>
+        Licensed under <span className="font-mono bg-white/5 border border-white/10 px-2 py-0.5 rounded text-xs text-white/60">AGPLv3</span>
       </div>
     </div>
   </footer>
