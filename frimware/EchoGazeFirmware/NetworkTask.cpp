@@ -23,9 +23,7 @@ static void handleWebSocketMessage(uint8_t *payload, size_t length) {
     StaticJsonDocument<256> doc;
     if (deserializeJson(doc, payload, length) == DeserializationError::Ok) {
         String cmd = doc["cmd"];
-        if (cmd == "set_threshold") {
-            currentBlinkThreshold = doc["value"];
-        } else if (cmd == "set_debounce") {
+        if (cmd == "set_debounce") {
             currentDebounceMs = doc["value"];
         } else if (cmd == "set_scan_speed") {
             currentDoubleBlinkWindowMs = doc["value"];
@@ -79,13 +77,7 @@ void setupNetworkTask() {
         Serial.println("SPIFFS Mount Failed - formatting");
     }
 
-    WiFi.mode(WIFI_AP_STA);
-    String mac = WiFi.macAddress();
-    mac.replace(":", "");
-    String apSsid = AP_SSID_PREFIX + mac.substring(mac.length() - 4);
-
-    WiFi.softAP(apSsid.c_str(), AP_DEFAULT_PASSWORD);
-    dnsServer.start(53, "*", WiFi.softAPIP());
+    WiFi.mode(WIFI_STA);
 
     Preferences prefs;
     prefs.begin("echogaze", true);
@@ -93,9 +85,36 @@ void setupNetworkTask() {
     String sta_pass = prefs.getString("pass", "");
     prefs.end();
 
+    bool ap_mode_needed = true;
+
     if (sta_ssid.length() > 0) {
-        WiFi.begin(sta_ssid.c_str(), sta_pass.c_str());
         Serial.println("Connecting to STA: " + sta_ssid);
+        WiFi.begin(sta_ssid.c_str(), sta_pass.c_str());
+        
+        // Wait up to 10 seconds for connection
+        int attempts = 0;
+        while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+            delay(500);
+            Serial.print(".");
+            attempts++;
+        }
+        
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.println("\nWiFi connected.");
+            ap_mode_needed = false;
+        } else {
+            Serial.println("\nWiFi connection failed. Falling back to AP mode.");
+        }
+    }
+
+    if (ap_mode_needed) {
+        WiFi.mode(WIFI_AP_STA);
+        String mac = WiFi.macAddress();
+        mac.replace(":", "");
+        String apSsid = AP_SSID_PREFIX + mac.substring(mac.length() - 4);
+        WiFi.softAP(apSsid.c_str(), AP_DEFAULT_PASSWORD);
+        dnsServer.start(53, "*", WiFi.softAPIP());
+        Serial.println("AP Mode started: " + apSsid);
     }
 
     // WebSocket on port 81
