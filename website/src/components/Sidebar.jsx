@@ -5,11 +5,14 @@ import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Sidebar({ activeTab, setActiveTab, isAdmin }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
+  const isAnonymous = user?.isAnonymous;
 
   const handleSignOut = async () => {
     if (auth) {
@@ -77,16 +80,29 @@ export default function Sidebar({ activeTab, setActiveTab, isAdmin }) {
       </nav>
 
       <div className="pt-6 border-t border-zinc-800 mt-6 relative z-10">
-        <button
-          onClick={handleSignOut}
-          className={cn(
-            "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 group text-sm",
-            isCollapsed ? "justify-center" : ""
-          )}
-        >
-          <LogOut className="w-5 h-5 shrink-0 transition-colors" />
-          {!isCollapsed && <span className="font-medium tracking-wide">Sign Out</span>}
-        </button>
+        {isAnonymous ? (
+          <Link
+            href="/login"
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 group text-sm",
+              isCollapsed ? "justify-center" : ""
+            )}
+          >
+            <LogOut className="w-5 h-5 shrink-0 transition-colors" />
+            {!isCollapsed && <span className="font-medium tracking-wide">Admin Login</span>}
+          </Link>
+        ) : (
+          <button
+            onClick={handleSignOut}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 group text-sm",
+              isCollapsed ? "justify-center" : ""
+            )}
+          >
+            <LogOut className="w-5 h-5 shrink-0 transition-colors" />
+            {!isCollapsed && <span className="font-medium tracking-wide">Sign Out</span>}
+          </button>
+        )}
       </div>
     </>
   );
