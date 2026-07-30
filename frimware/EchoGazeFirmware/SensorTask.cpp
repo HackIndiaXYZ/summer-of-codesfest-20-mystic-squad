@@ -4,7 +4,6 @@
 
 volatile int liveClickCount = 0;
 void setupSensorTask() {
-    pinMode(IR_EMITTER_PIN, OUTPUT);
     pinMode(IR_RECEIVER_PIN, INPUT);
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     pinMode(FLEX_SENSOR_PIN, INPUT);
@@ -20,27 +19,7 @@ void sensorTask(void *pvParameters) {
     int clickCount = 0;
     bool triggerActive = false;
 
-    // EMA filtered baseline
-    float filteredAmbient = 0.0;
-    unsigned long bootTime = millis();
-
-    // Auto-calibration phase: build a stable ambient baseline
-    Serial.println("Starting Sensor Auto-Calibration...");
-    while(millis() - bootTime < AUTO_CALIBRATION_TIME_MS) {
-        digitalWrite(IR_EMITTER_PIN, LOW);
-        delayMicroseconds(SENSOR_SETTLE_TIME_US);
-        int ambient = analogRead(IR_RECEIVER_PIN);
-        
-        if (filteredAmbient == 0.0) {
-            filteredAmbient = ambient;
-        } else {
-            filteredAmbient = (EMA_ALPHA * ambient) + ((1.0 - EMA_ALPHA) * filteredAmbient);
-        }
-        
-        handleFeedback();
-        vTaskDelay(pdMS_TO_TICKS(SENSOR_READ_INTERVAL_MS));
-    }
-    Serial.printf("Calibration complete. Baseline Ambient: %.2f\n", filteredAmbient);
+    // Ready beep
     playTone(1500, 100);
     delay(100);
     playTone(2000, 100);
@@ -56,25 +35,11 @@ void sensorTask(void *pvParameters) {
         }
         btnPrevState = btnCurrentState;
 
-        // 2. Active Ambient Noise IR Sensor Demodulation
-        digitalWrite(IR_EMITTER_PIN, LOW);
-        delayMicroseconds(SENSOR_SETTLE_TIME_US);
-        int rawAmbient = analogRead(IR_RECEIVER_PIN);
-        
-        // Only update baseline when not triggered
-        if (!triggerActive) {
-            filteredAmbient = (EMA_ALPHA * rawAmbient) + ((1.0 - EMA_ALPHA) * filteredAmbient);
-        }
-
-        digitalWrite(IR_EMITTER_PIN, HIGH);
-        delayMicroseconds(SENSOR_SETTLE_TIME_US);
-        int reflected = analogRead(IR_RECEIVER_PIN);
-
-        // Subtract ambient to isolate biological signal
-        int irSignal = reflected - (int)filteredAmbient;
+        // 2. Digital IR Sensor (LOW = Object Detected)
+        bool irDetected = (digitalRead(IR_RECEIVER_PIN) == LOW);
         int flexValue = analogRead(FLEX_SENSOR_PIN);
         
-        bool sensorSignal = (irSignal > currentBlinkThreshold) || (flexValue > currentFlexThreshold);
+        bool sensorSignal = irDetected || (flexValue > currentFlexThreshold);
         handleFeedback();
 
         bool sensorTriggered = false;

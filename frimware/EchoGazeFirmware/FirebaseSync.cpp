@@ -20,7 +20,8 @@ String getHardwareId() {
 static void syncToFirebase(const char* command, unsigned long timestamp) {
     if (WiFi.status() == WL_CONNECTED) {
         if (!httpInitialized) {
-            http.begin(FIREBASE_URL);
+            String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json";
+            http.begin(fullUrl);
             http.setReuse(true); // Keep connection alive to avoid 1500ms TLS handshake latency
             httpInitialized = true;
         }
