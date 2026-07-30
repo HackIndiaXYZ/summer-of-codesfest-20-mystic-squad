@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { MessageSquare, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useCommands } from "@/hooks/useCommands";
 
-export default function CommandFeed() {
-  const { commands, loading } = useCommands();
+export default function CommandFeed({ commands = [], loading = false }) {
   const [pulseId, setPulseId] = useState(null);
 
   useEffect(() => {
