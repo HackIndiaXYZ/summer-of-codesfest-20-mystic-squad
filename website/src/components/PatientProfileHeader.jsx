@@ -83,7 +83,7 @@ export default function PatientProfileHeader({ user, emergencyCount = 0 }) {
 
             {/* Quick Patient UI Switch Button */}
             <Link
-              href="/patient"
+              href="/patient.html"
               className="px-5 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-medium text-sm transition-colors flex items-center gap-2"
             >
               <span>Open Patient Grid UI</span>

@@ -112,7 +112,18 @@ void setupNetworkTask() {
     webSocket.begin();
     webSocket.onEvent(onWsEvent);
 
-    // Serve static files from SPIFFS natively
+    // Explicitly handle / to serve index.html
+    server.on("/", HTTP_GET, []() {
+        File file = SPIFFS.open("/index.html", "r");
+        if (!file) {
+            server.send(500, "text/plain", "Error: SPIFFS Data Missing! Please run 'Upload File System image' in PlatformIO.");
+            return;
+        }
+        server.streamFile(file, "text/html");
+        file.close();
+    });
+
+    // Serve other static files from SPIFFS natively (like CSS, JS)
     server.serveStatic("/", SPIFFS, "/");
 
     // Handle captive portal requests and unknown paths

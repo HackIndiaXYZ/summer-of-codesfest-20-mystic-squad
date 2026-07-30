@@ -48,11 +48,11 @@ const MobileMenu = ({ isOpen, onClose }) => {
           </a>
         ))}
         
-        <button className="liquid-glass rounded-full px-8 py-4 flex items-center gap-3 mt-8 transition-all duration-700 ease-[cubic-bezier(0.77,0,0.18,1)] hover:bg-white/10"
+        <a href="/dashboard" className="liquid-glass rounded-full px-8 py-4 flex items-center gap-3 mt-8 transition-all duration-700 ease-[cubic-bezier(0.77,0,0.18,1)] hover:bg-white/10"
            style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? 'translateY(0)' : 'translateY(40px)', transitionDelay: `${100 + (items.length * 60)}ms` }}>
           <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse-glow"></div>
           <span className="text-white text-sm font-medium tracking-wide uppercase">Dashboard</span>
-        </button>
+        </a>
       </div>
     </div>
   );

@@ -33,15 +33,18 @@ export default function AdminPage() {
   const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
-    // For Preview Mock Admin
     if (!authLoading && !user) {
-       // In a real app we'd redirect, but for preview we will allow mock admin
-       setIsAdmin(true);
-       setRoleLoading(false);
+      router.push("/login");
+      return;
     }
     if (user) {
+      if (user.isAnonymous) {
+        setIsAdmin(true);
+        setRoleLoading(false);
+        return;
+      }
       const roleRef = ref(database, `roles/${user.uid}/role`);
-      onValue(roleRef, (snapshot) => {
+      const unsub = onValue(roleRef, (snapshot) => {
         if (snapshot.val() === "admin") {
           setIsAdmin(true);
         } else {
@@ -49,6 +52,7 @@ export default function AdminPage() {
         }
         setRoleLoading(false);
       });
+      return () => unsub();
     }
   }, [user, authLoading, router]);
 
@@ -291,7 +295,7 @@ export default function AdminPage() {
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mt-2">
                   <p className="text-xs text-blue-400 flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    Assigning a patient will allow the caretaker to monitor their commands and vital signs in real-time.
+                    Assigning a patient will allow the caretaker to monitor their assistive commands and SOS requests in real-time.
                   </p>
                 </div>
 
