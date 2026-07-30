@@ -19,10 +19,15 @@ void sensorTask(void *pvParameters) {
     int clickCount = 0;
     bool triggerActive = false;
 
-    // Ready beep
-    playTone(1500, 100);
-    delay(100);
-    playTone(2000, 100);
+    // Impressive drone startup tone
+    for (int freq = 100; freq <= 800; freq += 15) {
+        playTone(freq, 15);
+    }
+    for (int freq = 800; freq >= 400; freq -= 20) {
+        playTone(freq, 15);
+    }
+    delay(50);
+    playTone(1200, 150);
 
     for (;;) {
         unsigned long now = millis();
@@ -77,10 +82,13 @@ void sensorTask(void *pvParameters) {
             } else if (clickCount == 2) {
                 ev = EVT_DOUBLE_CLICK;
                 sendEvent = true;
+            } else if (clickCount == 3) {
+                ev = EVT_TRIPLE_CLICK;
+                sendEvent = true;
             } else if (clickCount >= 4) {
                 ev = EVT_QUAD_CLICK;
                 sendEvent = true;
-                playTone(3000, 300);
+                playAmbulanceSiren(3000);
             }
             
             if (sendEvent) {

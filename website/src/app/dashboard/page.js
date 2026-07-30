@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [assignedPatients, setAssignedPatients] = useState([]);
   const [patientStatuses, setPatientStatuses] = useState({});
+  const [lastSeenNormalId, setLastSeenNormalId] = useState(null);
 
   const { commands } = useCommands(assignedPatients, isAdmin);
 
@@ -123,9 +124,21 @@ export default function Dashboard() {
     const normalPatients = Object.values(patientStatuses).filter(p => p.status === "Normal Request");
     if (normalPatients.length > 0) {
       const latestNormal = normalPatients.sort((a,b) => b.latestCmd.timestamp - a.latestCmd.timestamp)[0].latestCmd;
-      setToast({ type: "info", message: `New request: ${latestNormal.phrase || "Patient needs attention"}` });
+      
+      if (latestNormal.id !== lastSeenNormalId && (Date.now() - latestNormal.timestamp < 60000)) {
+        setLastSeenNormalId(latestNormal.id);
+        
+        const rawPhrase = latestNormal.phrase || "";
+        const item = rawPhrase.replace(/^Patient wants /i, "").replace(/^I need /i, "").replace(/^Please provide /i, "").trim();
+        const patientId = latestNormal.device_id || "Unknown";
+        
+        setToast({ 
+          type: "info", 
+          message: `Patient ${patientId.substring(0, 8)} in Room 302 wants ${item}. Please provide him with that particular item.` 
+        });
+      }
     }
-  }, [patientStatuses]);
+  }, [patientStatuses, lastSeenNormalId]);
 
   useEffect(() => {
     if (!authLoading && !user) {

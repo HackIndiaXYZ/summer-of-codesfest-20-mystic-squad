@@ -5,7 +5,6 @@
 // EchoGaze Firmware Configuration
 #define ECHOGAZE_VERSION "3.0.0-LIVE"
 
-// Hardware Pin Definitions (ESP32 DevKit V1 Pinout)
 #define IR_RECEIVER_PIN 34 // Digital input for IR sensor
 #define BUTTON_PIN      13 // Digital input for physical single-switch (Internal Pullup)
 #define FLEX_SENSOR_PIN 35 // Analog input for flex sensor (ADC1_CH7)
@@ -39,6 +38,7 @@ enum EventType {
     EVT_DOUBLE_BLINK,
     EVT_SINGLE_CLICK,
     EVT_DOUBLE_CLICK,
+    EVT_TRIPLE_CLICK,
     EVT_QUAD_CLICK,
     EVT_LIVE_CLICK
 };
@@ -53,3 +53,10 @@ extern volatile int currentDoubleBlinkWindowMs;
 // FreeRTOS Inter-Task Communication Queues
 extern QueueHandle_t wsEventQueue;
 extern QueueHandle_t firebaseQueue;
+
+struct CustomMsg {
+    char phrase[64];
+    char category[32];
+    char emoji[8];
+};
+extern QueueHandle_t customMsgQueue;

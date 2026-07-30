@@ -28,6 +28,12 @@ static void handleWebSocketMessage(uint8_t *payload, size_t length) {
             currentDebounceMs = doc["value"];
         } else if (cmd == "set_scan_speed") {
             currentDoubleBlinkWindowMs = doc["value"];
+        } else if (cmd == "custom") {
+            CustomMsg msg;
+            strlcpy(msg.phrase, doc["phrase"] | "", sizeof(msg.phrase));
+            strlcpy(msg.category, doc["category"] | "General", sizeof(msg.category));
+            strlcpy(msg.emoji, doc["emoji"] | "", sizeof(msg.emoji));
+            xQueueSend(customMsgQueue, &msg, 0);
         }
     }
 }
@@ -225,6 +231,8 @@ void networkTask(void *pvParameters) {
                 broadcastWebSocket("{\"type\":\"single_click\"}");
             } else if (ev == EVT_DOUBLE_CLICK || ev == EVT_DOUBLE_BLINK) {
                 broadcastWebSocket("{\"type\":\"double_click\"}");
+            } else if (ev == EVT_TRIPLE_CLICK) {
+                broadcastWebSocket("{\"type\":\"triple_click\"}");
             } else if (ev == EVT_QUAD_CLICK) {
                 broadcastWebSocket("{\"type\":\"emergency_sos\"}");
             } else if (ev == EVT_LIVE_CLICK) {
