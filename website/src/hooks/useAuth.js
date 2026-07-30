@@ -19,10 +19,10 @@ export function useAuth() {
           setUser(user);
           setLoading(false);
         } else {
-          // Auto sign-in anonymously for demo/viewing purposes
+          // If no user, automatically sign in anonymously for preview mode
           signInAnonymously(auth).catch((err) => {
             console.error("Anonymous auth failed", err);
-            setError(err);
+            setUser(null);
             setLoading(false);
           });
         }

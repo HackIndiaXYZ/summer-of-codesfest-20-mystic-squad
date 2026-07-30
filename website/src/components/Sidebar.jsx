@@ -20,8 +20,6 @@ export default function Sidebar({ activeTab, setActiveTab, isAdmin }) {
 
   const navItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "analytics", label: "AI & Vitals", icon: Brain },
-    { id: "devices", label: "Devices", icon: Cpu },
     { id: "history", label: "History", icon: History },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -60,7 +58,7 @@ export default function Sidebar({ activeTab, setActiveTab, isAdmin }) {
 
         {/* Direct Patient Grid Link */}
         <Link
-          href="/patient"
+          href="/patient.html"
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors duration-300 text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 font-medium mt-6 group text-sm"
         >
           <Grid className="w-5 h-5 shrink-0 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-300" />
