@@ -29,7 +29,7 @@ void setup() {
     // Start Task Modules
     setupNetworkTask();  // Core 0: WiFi, WebSocket, WebServer
     setupFirebaseTask(); // Core 0: HTTPS Firebase Sync
-    setupSensorTask();   // Core 1: IR Sensor & Demodulation
+    setupSensorTask();   // Core 1: Digital IR Sensor IR Sensor & Demodulation Button
 
     // Setup completes, delete default Arduino loop task
     vTaskDelete(NULL);

@@ -43,7 +43,7 @@ export default function Dashboard() {
   const activeUser = user || {
     uid: "mock-123",
     email: "dr.vance@echogaze.org",
-    displayName: "Dr. Sarah Vance",
+    displayName: "Guest (Preview Mode)",
   };
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!database) return;
     if (!user) {
-      setAssignedPatients(["pat-mock-001"]); // Mock patient for preview
+      setAssignedPatients([]); // Real empty array instead of mock
       return;
     }
     const assignmentsRef = ref(database, `assignments/${user.uid}`);
@@ -160,15 +160,42 @@ export default function Dashboard() {
     (c) => new Date(c.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
-  const activeDevices = devices.filter((d) => d.status === "online").length || 1;
+  const activeDevicesCount = devices.filter((d) => d.status === "online").length;
 
-  const chartData = [
-    { label: "10am", value: 12 },
-    { label: "11am", value: 24 },
-    { label: "12pm", value: 18 },
-    { label: "1pm", value: 36 },
-    { label: "2pm", value: 22 },
-  ];
+  // Compute top request
+  const phraseCounts = {};
+  commands.forEach(c => {
+    if (c.phrase) {
+      phraseCounts[c.phrase] = (phraseCounts[c.phrase] || 0) + 1;
+    }
+  });
+  let topRequest = "N/A";
+  let maxCount = 0;
+  Object.keys(phraseCounts).forEach(phrase => {
+    if (phraseCounts[phrase] > maxCount) {
+      maxCount = phraseCounts[phrase];
+      topRequest = phrase;
+    }
+  });
+
+  // Compute chartData grouped by hour (for today)
+  const hourCounts = {};
+  const today = new Date().toDateString();
+  commands.forEach(c => {
+    const d = new Date(c.timestamp);
+    if (d.toDateString() === today) {
+      const hour = d.getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    }
+  });
+
+  const chartData = [];
+  // For hours 8 to 20
+  for (let i = 8; i <= 20; i++) {
+    let ampm = i >= 12 ? 'pm' : 'am';
+    let displayHour = i % 12 || 12;
+    chartData.push({ label: `${displayHour}${ampm}`, value: hourCounts[i] || 0 });
+  }
 
   return (
     <div className="min-h-screen flex bg-zinc-950 text-zinc-100 font-inter relative overflow-hidden">
@@ -247,10 +274,10 @@ export default function Dashboard() {
               )}
               {/* Quick Stats Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <StatsCard icon={MessageCircle} label="Today's Requests" value={todayCommands || 14} trend="+18%" isPositive={true} />
-                <StatsCard icon={Activity} label="Active Hardware" value={activeDevices} />
-                <StatsCard icon={Users} label="Top Request" value="Water 💧" />
-                <StatsCard icon={Clock} label="Avg Response Latency" value="1.1s" trend="-0.3s" isPositive={true} />
+                <StatsCard icon={MessageCircle} label="Today's Requests" value={todayCommands} trend="" isPositive={true} />
+                <StatsCard icon={Activity} label="Active Hardware" value={activeDevicesCount} />
+                <StatsCard icon={Users} label="Top Request" value={topRequest} />
+                <StatsCard icon={Clock} label="Avg Response Latency" value="-" trend="" isPositive={true} />
               </div>
 
               {/* Heart Rate & AI Insights Grid */}
@@ -365,7 +392,7 @@ export default function Dashboard() {
                   <div>
                     <label className="block text-xs font-medium text-zinc-500 mb-2">Caregiver Name</label>
                     <div className="text-zinc-200 bg-zinc-950 px-4 py-3 rounded-xl border border-zinc-800">
-                      {activeUser.displayName || "Dr. Sarah Vance"}
+                      {activeUser.displayName || "Guest (Preview Mode)"}
                     </div>
                   </div>
                 </div>
