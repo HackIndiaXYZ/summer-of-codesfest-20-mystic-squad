@@ -44,7 +44,11 @@ void sensorTask(void *pvParameters) {
         bool irDetected = (digitalRead(IR_RECEIVER_PIN) == LOW);
         int flexValue = analogRead(FLEX_SENSOR_PIN);
         
-        bool sensorSignal = irDetected || (flexValue > currentFlexThreshold);
+        static int flexSmoothed = 0;
+        if (flexSmoothed == 0) flexSmoothed = flexValue; // Initialize
+        flexSmoothed = (flexSmoothed * 3 + flexValue) / 4; // EMA Filter for noise reduction
+        
+        bool sensorSignal = irDetected || (flexSmoothed > currentFlexThreshold);
         handleFeedback();
 
         bool sensorTriggered = false;
