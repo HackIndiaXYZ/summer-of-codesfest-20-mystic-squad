@@ -85,6 +85,11 @@ void setupNetworkTask() {
     String sta_pass = prefs.getString("pass", "");
     prefs.end();
 
+    if (sta_ssid.length() == 0 && String(DEFAULT_WIFI_SSID) != "Your_WiFi_SSID") {
+        sta_ssid = DEFAULT_WIFI_SSID;
+        sta_pass = DEFAULT_WIFI_PASSWORD;
+    }
+
     bool ap_mode_needed = true;
 
     if (sta_ssid.length() > 0) {
@@ -125,8 +130,14 @@ void setupNetworkTask() {
     server.onNotFound([]() {
         String uri = server.uri();
         if (!serveFile(uri)) {
+            // Avoid infinite redirect if index.html is missing
+            if (uri == "/" || uri == "/index.html") {
+                server.send(500, "text/plain", "Error: SPIFFS Data Missing! Please run 'Upload File System image' in PlatformIO.");
+                return;
+            }
             // Captive portal redirect for unknown paths
-            server.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/");
+            String redirectIp = (WiFi.getMode() & WIFI_AP) ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+            server.sendHeader("Location", "http://" + redirectIp + "/");
             server.send(302, "text/plain", "Redirecting...");
         }
     });
