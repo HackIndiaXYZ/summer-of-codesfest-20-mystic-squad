@@ -16,6 +16,9 @@
 #define AP_SSID_PREFIX "EchoGaze-"
 #define AP_DEFAULT_PASSWORD "12345678"
 #define FIREBASE_BASE_URL "https://echo-gaze-default-rtdb.firebaseio.com"
+#define FIREBASE_API_KEY "AIzaSyAW0QMBgmGzFivEWOMNla66ff3AX8XZJqg"
+#define FIREBASE_AUTH_EMAIL "device@echogaze.org"
+#define FIREBASE_AUTH_PASSWORD "ECHO_DEVICE_PASS_2026"
 
 // Sensor Processing Thresholds
 #define DEFAULT_FLEX_THRESHOLD 2000

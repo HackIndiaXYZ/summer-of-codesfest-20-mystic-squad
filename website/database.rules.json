@@ -11,13 +11,19 @@
       }
     },
     "users": {
-      ".read": true,
+      ".read": "auth !== null && (root.child('roles/' + auth.uid + '/role').val() === 'admin' || auth.token.firebase.sign_in_provider === 'anonymous')",
       ".write": "auth !== null && root.child('roles/' + auth.uid + '/role').val() === 'admin'",
       "$patientId": {
-        ".read": true,
-        ".write": "(auth !== null && (auth.uid === $patientId || root.child('roles/' + auth.uid + '/role').val() === 'admin' || root.child('assignments/' + auth.uid + '/' + $patientId).val() === true)) || $patientId.beginsWith('ECHO-')",
+        ".read": "auth !== null && (auth.uid === $patientId || root.child('roles/' + auth.uid + '/role').val() === 'admin' || root.child('assignments/' + auth.uid + '/' + $patientId).val() === true || auth.token.firebase.sign_in_provider === 'anonymous')",
+        ".write": "auth !== null && (auth.uid === $patientId || root.child('roles/' + auth.uid + '/role').val() === 'admin' || root.child('assignments/' + auth.uid + '/' + $patientId).val() === true || ($patientId.beginsWith('ECHO-') && auth.token.email === 'device@echogaze.org'))",
         "commands": {
-          ".indexOn": ["timestamp"]
+          ".indexOn": ["timestamp"],
+          "$commandId": {
+            ".validate": "newData.hasChildren(['event', 'timestamp', 'device_id']) && newData.child('event').isString() && newData.child('event').val().length < 50 && newData.child('timestamp').isNumber() && newData.child('device_id').isString() && newData.child('device_id').val().length < 50 && (!newData.hasChild('phrase') || (newData.child('phrase').isString() && newData.child('phrase').val().length < 150))"
+          }
+        },
+        "deviceStatus": {
+           ".validate": "newData.hasChildren(['uptime', 'lastSeen']) && newData.child('uptime').isNumber() && newData.child('lastSeen').isNumber()"
         }
       }
     },

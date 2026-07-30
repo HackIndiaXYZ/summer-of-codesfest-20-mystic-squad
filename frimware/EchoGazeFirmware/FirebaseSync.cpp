@@ -15,10 +15,53 @@ String getHardwareId() {
     return cachedHardwareId;
 }
 
+static String idToken = "";
+static unsigned long tokenExpiry = 0;
+
+void authenticateFirebase() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    
+    // Check if token is still valid (give 5 minutes buffer)
+    if (idToken != "" && (millis() < tokenExpiry || tokenExpiry == 0)) {
+        return; 
+    }
+
+    HTTPClient http;
+    String url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + String(FIREBASE_API_KEY);
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<256> doc;
+    doc["email"] = FIREBASE_AUTH_EMAIL;
+    doc["password"] = FIREBASE_AUTH_PASSWORD;
+    doc["returnSecureToken"] = true;
+
+    String payload;
+    serializeJson(doc, payload);
+
+    int httpCode = http.POST(payload);
+    if (httpCode == HTTP_CODE_OK) {
+        String response = http.getString();
+        StaticJsonDocument<1024> resDoc;
+        deserializeJson(resDoc, response);
+        idToken = resDoc["idToken"].as<String>();
+        long expiresIn = resDoc["expiresIn"].as<long>(); 
+        tokenExpiry = millis() + ((expiresIn - 300) * 1000); 
+        Serial.println("Firebase authenticated successfully");
+    } else {
+        Serial.printf("Firebase auth failed: %d\n", httpCode);
+        idToken = "";
+    }
+    http.end();
+}
+
 static void syncToFirebase(const char* command, unsigned long timestamp) {
     if (WiFi.status() == WL_CONNECTED) {
+        authenticateFirebase();
+        if (idToken == "") return;
+        
         HTTPClient http;
-        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json";
+        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json?auth=" + idToken;
         http.begin(fullUrl);
         http.addHeader("Content-Type", "application/json");
 
@@ -58,8 +101,11 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
 
 void syncDeviceStatus() {
     if (WiFi.status() == WL_CONNECTED) {
+        authenticateFirebase();
+        if (idToken == "") return;
+        
         HTTPClient http;
-        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/deviceStatus.json";
+        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/deviceStatus.json?auth=" + idToken;
         http.begin(fullUrl);
         http.addHeader("Content-Type", "application/json");
 
