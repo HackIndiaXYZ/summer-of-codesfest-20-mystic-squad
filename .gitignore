@@ -143,3 +143,7 @@ vite.config.ts.timestamp-*
 .vite/
 /frimware/EchoGazeFirmware/.pio
 /frimware/EchoGazeFirmware/.pio
+/frimware/EchoGazeFirmware/.pio
+/frimware/EchoGazeFirmware/.pio/build
+/frimware/EchoGazeFirmware/.pio/build
+/frimware/EchoGazeFirmware/.pio/build/esp32dev
