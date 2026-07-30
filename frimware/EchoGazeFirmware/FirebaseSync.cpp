@@ -80,25 +80,60 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
         
         doc["device_id"] = getHardwareId();
         
-        if (cmdStr == "single_click") {
-            doc["phrase"] = "Patient triggered single click";
-            doc["label"] = "Single Click";
-            doc["category"] = "General";
-            doc["emoji"] = "👆";
-            doc["status"] = "COMPLETED";
-        } else if (cmdStr == "double_click") {
-            doc["phrase"] = "Patient triggered double click";
-            doc["label"] = "Double Click";
-            doc["category"] = "General";
-            doc["emoji"] = "👆👆";
-            doc["status"] = "COMPLETED";
-        } else if (cmdStr == "emergency_sos") {
+        if (cmdStr == "emergency_sos") {
             doc["phrase"] = "Patient triggered emergency SOS";
             doc["label"] = "Emergency SOS";
             doc["category"] = "Emergency";
             doc["emoji"] = "🚨";
             doc["status"] = "EMERGENCY";
+        } else if (cmdStr == "single_click") {
+            doc["phrase"] = "Patient wants water";
+            doc["category"] = "Grid";
+            doc["emoji"] = "💧";
+            doc["status"] = "COMPLETED";
+        } else if (cmdStr == "double_click") {
+            doc["phrase"] = "Patient needs to use washroom";
+            doc["category"] = "Grid";
+            doc["emoji"] = "🚽";
+            doc["status"] = "COMPLETED";
+        } else if (cmdStr == "triple_click") {
+            doc["phrase"] = "Patient wants food";
+            doc["category"] = "Grid";
+            doc["emoji"] = "🍲";
+            doc["status"] = "COMPLETED";
+        } else {
+            return; // Only sync specific mapped commands to Firebase
         }
+
+        String payload;
+        serializeJson(doc, payload);
+
+        http.POST(payload);
+        http.end();
+    }
+}
+
+static void syncCustomToFirebase(const CustomMsg& msg, unsigned long timestamp) {
+    if (WiFi.status() == WL_CONNECTED) {
+        authenticateFirebase();
+        if (idToken == "") return;
+        
+        HTTPClient http;
+        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json?auth=" + idToken;
+        http.begin(fullUrl);
+        http.addHeader("Content-Type", "application/json");
+
+        StaticJsonDocument<256> doc;
+        doc["event"] = "custom_message";
+        
+        JsonObject tsObj = doc.createNestedObject("timestamp");
+        tsObj[".sv"] = "timestamp";
+        
+        doc["device_id"] = getHardwareId();
+        doc["phrase"] = msg.phrase;
+        doc["category"] = msg.category;
+        doc["emoji"] = msg.emoji;
+        doc["status"] = "COMPLETED";
 
         String payload;
         serializeJson(doc, payload);
@@ -140,19 +175,25 @@ void firebaseTask(void *pvParameters) {
     unsigned long lastStatusSync = 0;
     for (;;) {
         EventType ev;
-        if (xQueueReceive(firebaseQueue, &ev, pdMS_TO_TICKS(1000)) == pdPASS) {
+        if (xQueueReceive(firebaseQueue, &ev, pdMS_TO_TICKS(100)) == pdPASS) {
             const char* evtStr = "unknown";
             switch(ev) {
                 case EVT_SINGLE_CLICK:
                 case EVT_SINGLE_BLINK: evtStr = "single_click"; break;
                 case EVT_DOUBLE_CLICK:
                 case EVT_DOUBLE_BLINK: evtStr = "double_click"; break;
+                case EVT_TRIPLE_CLICK: evtStr = "triple_click"; break;
                 case EVT_QUAD_CLICK: evtStr = "emergency_sos"; break;
                 default: break;
             }
             if (String(evtStr) != "unknown") {
                 syncToFirebase(evtStr, millis());
             }
+        }
+        
+        CustomMsg msg;
+        if (xQueueReceive(customMsgQueue, &msg, 0) == pdPASS) {
+            syncCustomToFirebase(msg, millis());
         }
         
         if (millis() - lastStatusSync >= 30000) {
