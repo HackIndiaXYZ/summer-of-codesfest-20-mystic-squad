@@ -9,6 +9,7 @@
 #include <Preferences.h>
 #include <DNSServer.h>
 #include <Update.h>
+#include <ESPmDNS.h>
 
 // Port 80 for HTTP, port 81 for WebSocket
 static WebServer server(80);
@@ -48,29 +49,7 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t lengt
     }
 }
 
-// Helper to serve SPIFFS files with correct MIME type
-static String getMimeType(const String& path) {
-    if (path.endsWith(".html")) return "text/html";
-    if (path.endsWith(".css"))  return "text/css";
-    if (path.endsWith(".js"))   return "application/javascript";
-    if (path.endsWith(".json")) return "application/json";
-    if (path.endsWith(".png"))  return "image/png";
-    if (path.endsWith(".jpg"))  return "image/jpeg";
-    if (path.endsWith(".ico"))  return "image/x-icon";
-    if (path.endsWith(".svg"))  return "image/svg+xml";
-    return "text/plain";
-}
-
-static bool serveFile(String path) {
-    if (path.endsWith("/")) path += "index.html";
-    if (SPIFFS.exists(path)) {
-        File file = SPIFFS.open(path, "r");
-        server.streamFile(file, getMimeType(path));
-        file.close();
-        return true;
-    }
-    return false;
-}
+// Helper to serve SPIFFS files removed in favor of serveStatic
 
 void setupNetworkTask() {
     if (!SPIFFS.begin(true)) {
@@ -106,6 +85,11 @@ void setupNetworkTask() {
         
         if (WiFi.status() == WL_CONNECTED) {
             Serial.println("\nWiFi connected.");
+            Serial.print("IP Address: ");
+            Serial.println(WiFi.localIP());
+            if (MDNS.begin("echogaze")) {
+                Serial.println("MDNS responder started at http://echogaze.local");
+            }
             ap_mode_needed = false;
         } else {
             Serial.println("\nWiFi connection failed. Falling back to AP mode.");
@@ -120,26 +104,26 @@ void setupNetworkTask() {
         WiFi.softAP(apSsid.c_str(), AP_DEFAULT_PASSWORD);
         dnsServer.start(53, "*", WiFi.softAPIP());
         Serial.println("AP Mode started: " + apSsid);
+        Serial.print("AP IP Address: ");
+        Serial.println(WiFi.softAPIP());
     }
 
     // WebSocket on port 81
     webSocket.begin();
     webSocket.onEvent(onWsEvent);
 
-    // Serve static files from SPIFFS
+    // Serve static files from SPIFFS natively
+    server.serveStatic("/", SPIFFS, "/");
+
+    // Handle captive portal requests and unknown paths
     server.onNotFound([]() {
-        String uri = server.uri();
-        if (!serveFile(uri)) {
-            // Avoid infinite redirect if index.html is missing
-            if (uri == "/" || uri == "/index.html") {
-                server.send(500, "text/plain", "Error: SPIFFS Data Missing! Please run 'Upload File System image' in PlatformIO.");
-                return;
-            }
-            // Captive portal redirect for unknown paths
-            String redirectIp = (WiFi.getMode() & WIFI_AP) ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
-            server.sendHeader("Location", "http://" + redirectIp + "/");
-            server.send(302, "text/plain", "Redirecting...");
+        if (!SPIFFS.exists("/index.html")) {
+            server.send(500, "text/plain", "Error: SPIFFS Data Missing! Please run 'Upload File System image' in PlatformIO.");
+            return;
         }
+        String redirectIp = (WiFi.getMode() & WIFI_AP) ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+        server.sendHeader("Location", "http://" + redirectIp + "/");
+        server.send(302, "text/plain", "Redirecting...");
     });
 
     // WiFi credential endpoint
@@ -214,6 +198,13 @@ void networkTask(void *pvParameters) {
             String status;
             serializeJson(doc, status);
             broadcastWebSocket(status);
+
+            // Also print IP to Serial monitor periodically so it's easy to find
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("Webserver is live at IP: " + WiFi.localIP().toString());
+            } else {
+                Serial.println("Webserver is live at AP IP: " + WiFi.softAPIP().toString());
+            }
         }
 
         // Forward sensor events to WebSocket clients

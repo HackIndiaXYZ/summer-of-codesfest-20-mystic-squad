@@ -54,8 +54,6 @@ void authenticateFirebase() {
             Serial.println(error.c_str());
             idToken = "";
         }
-        tokenExpiry = millis() + ((expiresIn - 300) * 1000); 
-        Serial.println("Firebase authenticated successfully");
     } else {
         Serial.printf("Firebase auth failed: %d\n", httpCode);
         idToken = "";
