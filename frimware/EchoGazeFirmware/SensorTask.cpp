@@ -52,13 +52,17 @@ void sensorTask(void *pvParameters) {
         handleFeedback();
 
         bool sensorTriggered = false;
-        // Non-Blocking Debounce State Machine for IR / Flex
+        static int consecutiveHigh = 0;
+        
+        // Require signal to be sustained for 60ms (6 loops at 10ms) to filter out noise spikes
         if (sensorSignal) {
-            if (!triggerActive && (now - lastClickTime >= (unsigned long)currentDebounceMs)) {
+            consecutiveHigh++;
+            if (!triggerActive && consecutiveHigh >= 6 && (now - lastClickTime >= (unsigned long)currentDebounceMs)) {
                 triggerActive = true;
                 sensorTriggered = true;
             }
         } else {
+            consecutiveHigh = 0;
             if (triggerActive && (now - lastClickTime >= (unsigned long)currentDebounceMs)) {
                 triggerActive = false;
             }
