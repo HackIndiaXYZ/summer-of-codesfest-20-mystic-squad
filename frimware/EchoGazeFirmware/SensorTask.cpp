@@ -54,10 +54,10 @@ void sensorTask(void *pvParameters) {
         bool sensorTriggered = false;
         static int consecutiveHigh = 0;
         
-        // Require signal to be sustained for 60ms (6 loops at 10ms) to filter out noise spikes
+        // Require signal to be sustained for 120ms (12 loops at 10ms) to filter out accidental twitches/blinks and noise spikes
         if (sensorSignal) {
             consecutiveHigh++;
-            if (!triggerActive && consecutiveHigh >= 6 && (now - lastClickTime >= (unsigned long)currentDebounceMs)) {
+            if (!triggerActive && consecutiveHigh >= 12 && (now - lastClickTime >= (unsigned long)currentDebounceMs)) {
                 triggerActive = true;
                 sensorTriggered = true;
             }

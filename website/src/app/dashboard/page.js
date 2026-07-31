@@ -181,15 +181,15 @@ export default function Dashboard() {
           <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pt-10 md:pt-0 pb-4 border-b border-white/5">
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-lg opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none"></div>
-              <h1 className="relative text-3xl font-bold text-zinc-100 mb-1 tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              <h1 className="relative text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 to-zinc-400 mb-2 tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {activeTab === "overview" && "Patient Monitoring & Admin Dashboard"}
                 {activeTab === "analytics" && "AI Intent & Clinical Vitals"}
                 {activeTab === "devices" && "Connected Devices & Hardware"}
                 {activeTab === "history" && "Command History & Audit Logs"}
                 {activeTab === "settings" && "Account & Facility Settings"}
               </h1>
-              <p className="text-zinc-500 text-sm">
-                {format(new Date(), "EEEE, MMMM do, yyyy")} • GSSoC AAC Caregiver Console
+              <p className="text-zinc-500 text-sm font-medium tracking-wide">
+                {format(new Date(), "EEEE, MMMM do, yyyy")} <span className="opacity-50 mx-2">•</span> <span className="text-blue-400/80 uppercase text-[11px] tracking-widest">EchoGaze Caregiver Console</span>
               </p>
             </div>
 
@@ -225,15 +225,20 @@ export default function Dashboard() {
                                  "group-hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]";
 
                     return (
-                      <div key={pId} className={`group p-5 rounded-2xl border ${bgColor} ${glow} flex flex-col justify-between transition-all duration-500 hover:-translate-y-1 hover:bg-opacity-30 relative overflow-hidden`}>
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-zinc-100 text-lg">Patient: {pId.slice(0,6)}</h3>
-                          <div className={`w-2 h-2 rounded-full ${statusData.status === "Emergency" ? "bg-red-500 animate-pulse" : statusData.status === "Normal Request" ? "bg-yellow-500" : "bg-green-500"}`}></div>
+                      <div key={pId} className={`group p-6 rounded-3xl border ${bgColor} ${glow} flex flex-col justify-between transition-all duration-700 hover:-translate-y-2 hover:bg-opacity-40 relative overflow-hidden bg-gradient-to-br from-zinc-900 to-zinc-950/50 backdrop-blur-md`}>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-white/10 transition-colors duration-700"></div>
+                        <div className="flex justify-between items-start mb-4 relative z-10">
+                          <div>
+                             <h3 className="font-semibold text-zinc-100 text-xl tracking-tight mb-1">Patient {pId.slice(0,6)}</h3>
+                             <div className="text-xs text-zinc-500 font-medium flex items-center gap-2">Room 304 <span className="w-1 h-1 rounded-full bg-zinc-700"></span> Bed B</div>
+                          </div>
+                          <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${statusData.status === "Emergency" ? "bg-red-500 text-red-500 animate-pulse" : statusData.status === "Normal Request" ? "bg-yellow-500 text-yellow-500" : "bg-green-500 text-green-500"}`}></div>
                         </div>
-                        <div className="mt-4 flex items-center justify-between">
-                          <p className={`text-sm font-medium ${textColor} px-2 py-1 bg-black/20 rounded-md backdrop-blur-sm inline-block`}>{statusData.status}</p>
-                          <span className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors">View Details &rarr;</span>
+                        <div className="mt-6 flex items-center justify-between relative z-10 border-t border-white/5 pt-4">
+                          <p className={`text-sm font-semibold ${textColor} px-3 py-1.5 bg-black/40 rounded-lg backdrop-blur-md inline-flex items-center gap-2 border border-white/5 shadow-inner`}>
+                            {statusData.status}
+                          </p>
+                          <span className="text-xs font-medium text-zinc-500 group-hover:text-blue-400 transition-colors uppercase tracking-widest flex items-center gap-1">Details <span className="text-[10px]">&rarr;</span></span>
                         </div>
                       </div>
                     );
@@ -241,11 +246,15 @@ export default function Dashboard() {
                 </div>
               )}
               {/* Live Feed */}
-              <div className="group bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-6 md:p-8 flex flex-col max-h-[700px] transition-colors duration-500 relative overflow-hidden shadow-xl">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent pointer-events-none group-hover:via-blue-500/40 transition-all duration-700"></div>
-                <div className="flex justify-between items-center mb-6 relative z-10">
-                  <h2 className="text-base font-medium text-zinc-200 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <div className="group bg-zinc-900/40 backdrop-blur-xl border border-white/5 hover:border-white/10 rounded-3xl p-6 md:p-8 flex flex-col max-h-[700px] transition-all duration-700 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[1px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent pointer-events-none group-hover:via-blue-500/50 transition-all duration-1000 group-hover:w-[150%]"></div>
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="flex justify-between items-center mb-8 relative z-10 border-b border-white/5 pb-4">
+                  <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-3 tracking-wide" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                    </span>
                     Live Request Feed
                   </h2>
                 </div>
