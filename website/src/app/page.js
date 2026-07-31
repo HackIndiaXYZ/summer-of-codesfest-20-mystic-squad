@@ -151,19 +151,20 @@ const PremiumCard = ({ children, className = "", delay = 0 }) => {
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      className={`group relative overflow-hidden bg-zinc-950 border border-zinc-800 rounded-2xl transition-all duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'} ${className}`}
+      className={`group relative overflow-hidden bg-zinc-950 border border-white/10 hover:border-white/20 rounded-2xl transition-all duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] hover:shadow-[0_8px_30px_rgb(255,255,255,0.04)] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'} ${className}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {/* Subtle Mouse Tracking Highlight */}
       <div 
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
         style={{
-          background: 'radial-gradient(400px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(255, 255, 255, 0.03), transparent 40%)'
+          background: 'radial-gradient(600px circle at var(--mouse-x, 0) var(--mouse-y, 0), rgba(255, 255, 255, 0.06), transparent 40%)'
         }}
       />
+      <div className="absolute inset-[1px] bg-zinc-950/90 rounded-2xl z-0" />
       
       {/* Content wrapper */}
-      <div className="relative z-10 p-8 md:p-10 h-full flex flex-col">
+      <div className="relative z-10 p-8 md:p-10 h-full flex flex-col transition-transform duration-500 group-hover:translate-y-[-4px]">
         {children}
       </div>
     </div>
@@ -215,10 +216,10 @@ const Header = () => {
           ))}
         </div>
         <div className="flex items-center gap-3 md:gap-4 px-3 md:px-4 h-10 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-sm font-medium">
-          <a href="/dashboard" className="text-white/60 hover:text-white transition-colors flex items-center gap-2">
+          <a href="/dashboard" className="text-white/60 hover:text-white transition-all hover:scale-105 flex items-center gap-2">
             <span className="uppercase tracking-widest text-[10px]">Dashboard</span>
           </a>
-          <a href="https://github.com/John-Varghese-EH/MyStic-Squad_Amit-Kumar" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors flex items-center gap-2 group">
+          <a href="https://github.com/John-Varghese-EH/summer-of-codesfest-20-mystic-squad" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-all hover:scale-105 flex items-center gap-2 group">
             <svg className="w-4 h-4 fill-current hidden sm:block" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
             <span className="flex items-center gap-1 text-xs font-semibold">
               <Star className="w-3.5 h-3.5 sm:w-3 sm:h-3 fill-current group-hover:text-yellow-500 transition-colors" />
@@ -259,7 +260,7 @@ const Footer = () => (
       <div className="space-y-4 col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-2 md:col-start-7 lg:col-start-6">
         <h4 className="font-bold text-white tracking-tight">Resources</h4>
         <ul className="space-y-3">
-          <li><a href="https://github.com/John-Varghese-EH/MyStic-Squad_Amit-Kumar" className="hover:text-white text-white/50 transition-colors text-sm font-medium">GitHub Repository</a></li>
+          <li><a href="https://github.com/John-Varghese-EH/summer-of-codesfest-20-mystic-squad" className="hover:text-white text-white/50 transition-colors text-sm font-medium">GitHub Repository</a></li>
           <li><a href="/dashboard" className="hover:text-white text-white/50 transition-colors text-sm font-medium">Live Dashboard</a></li>
         </ul>
       </div>
@@ -551,12 +552,12 @@ export default function Home() {
                 { icon: Cloud, title: "Cloud WebSocket", desc: "JSON payloads fire at sub-500ms latency." },
                 { icon: LayoutDashboard, title: "Caregiver UI", desc: "React dashboard alerts staff instantly." }
               ].map((step, i) => (
-                <FadeIn key={i} delay={i * 150} className="bg-zinc-950 border border-zinc-800 p-8 rounded-2xl flex flex-col items-center text-center">
-                  <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
-                    <step.icon className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                <FadeIn key={i} delay={i * 150} className="bg-zinc-950 border border-zinc-800/60 p-8 rounded-2xl flex flex-col items-center text-center hover:bg-zinc-900/50 hover:border-zinc-700 transition-all duration-500 hover:-translate-y-2 group">
+                  <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-500">
+                    <step.icon className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                   </div>
-                  <h5 className="text-lg font-medium mb-2 text-zinc-100">{step.title}</h5>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{step.desc}</p>
+                  <h5 className="text-lg font-medium mb-2 text-zinc-100 group-hover:text-white transition-colors">{step.title}</h5>
+                  <p className="text-sm text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors">{step.desc}</p>
                 </FadeIn>
               ))}
             </div>
@@ -611,11 +612,11 @@ export default function Home() {
               The full hardware schematics, C++ firmware, and dashboard source code are published open-source. Assistive tech should not be gated behind lakh-rupee licensing.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="/dashboard" className="bg-zinc-100 text-zinc-900 rounded-lg px-8 py-3.5 flex items-center gap-2 hover:bg-white transition-colors w-full sm:w-auto justify-center font-medium">
+              <a href="/dashboard" className="group bg-zinc-100 text-zinc-900 rounded-full px-8 py-4 flex items-center gap-2 hover:bg-white hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all duration-300 w-full sm:w-auto justify-center font-bold">
                 <span>View Live Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </a>
-              <a href="https://github.com/John-Varghese-EH/MyStic-Squad_Amit-Kumar" target="_blank" rel="noreferrer" className="bg-zinc-900 border border-zinc-800 rounded-lg px-8 py-3.5 flex items-center gap-2 hover:bg-zinc-800 transition-colors w-full sm:w-auto justify-center text-zinc-300 font-medium">
+              <a href="https://github.com/John-Varghese-EH/summer-of-codesfest-20-mystic-squad" target="_blank" rel="noreferrer" className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-full px-8 py-4 flex items-center gap-2 hover:bg-zinc-800 hover:border-zinc-600 hover:scale-105 transition-all duration-300 w-full sm:w-auto justify-center text-zinc-300 font-medium">
                 <span>GitHub Repository</span>
               </a>
             </div>

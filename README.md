@@ -2,6 +2,8 @@
 
 > *Your gaze, echoed to those who care.*
 
+**Repository:** [John-Varghese-EH/summer-of-codesfest-20-mystic-squad](https://github.com/John-Varghese-EH/summer-of-codesfest-20-mystic-squad)
+
 ---
 
 ## What is EchoGaze?
