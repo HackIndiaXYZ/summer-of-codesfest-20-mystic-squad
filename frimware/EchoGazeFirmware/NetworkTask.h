@@ -4,3 +4,4 @@
 
 void setupNetworkTask();
 void networkTask(void *pvParameters);
+int getConnectedWebSockets();

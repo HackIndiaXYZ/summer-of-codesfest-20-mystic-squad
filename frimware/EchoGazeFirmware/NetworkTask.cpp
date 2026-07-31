@@ -16,6 +16,12 @@ static WebServer server(80);
 static WebSocketsServer webSocket(81);
 static DNSServer dnsServer;
 
+static int activeWsClients = 0;
+
+int getConnectedWebSockets() {
+    return activeWsClients;
+}
+
 static void broadcastWebSocket(const String& message) {
     webSocket.broadcastTXT(message.c_str());
 }
@@ -46,9 +52,11 @@ static void onWsEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t lengt
         }
         case WStype_DISCONNECTED:
             Serial.printf("WS Client #%u disconnected\n", num);
+            if (activeWsClients > 0) activeWsClients--;
             break;
         case WStype_CONNECTED:
             Serial.printf("WS Client #%u connected\n", num);
+            activeWsClients++;
             break;
         default:
             break;

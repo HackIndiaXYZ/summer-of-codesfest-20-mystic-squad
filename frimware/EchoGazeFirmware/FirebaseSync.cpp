@@ -1,4 +1,5 @@
 #include "FirebaseSync.h"
+#include "NetworkTask.h"
 #include "Config.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -87,7 +88,32 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
             doc["emoji"] = "🚨";
             doc["status"] = "EMERGENCY";
         } else {
-            return; // Only sync emergency_sos natively, UI handles grid selections
+            // If Web UI is NOT connected, fallback to standalone hardcoded shortcuts
+            if (getConnectedWebSockets() == 0) {
+                if (cmdStr == "single_click") {
+                    doc["phrase"] = "I need water to drink";
+                    doc["label"] = "Water";
+                    doc["category"] = "Essential Needs";
+                    doc["emoji"] = "💧";
+                    doc["status"] = "COMPLETED";
+                } else if (cmdStr == "double_click") {
+                    doc["phrase"] = "I am hungry for food";
+                    doc["label"] = "Food";
+                    doc["category"] = "Essential Needs";
+                    doc["emoji"] = "🍲";
+                    doc["status"] = "COMPLETED";
+                } else if (cmdStr == "triple_click") {
+                    doc["phrase"] = "Assist to washroom";
+                    doc["label"] = "Washroom";
+                    doc["category"] = "Essential Needs";
+                    doc["emoji"] = "🚾";
+                    doc["status"] = "COMPLETED";
+                } else {
+                    return;
+                }
+            } else {
+                return; // UI is active and handles grid selections
+            }
         }
 
         String payload;
