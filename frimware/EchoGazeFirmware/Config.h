@@ -54,9 +54,3 @@ extern volatile int currentDoubleBlinkWindowMs;
 extern QueueHandle_t wsEventQueue;
 extern QueueHandle_t firebaseQueue;
 
-struct CustomMsg {
-    char phrase[64];
-    char category[32];
-    char emoji[8];
-};
-extern QueueHandle_t customMsgQueue;
