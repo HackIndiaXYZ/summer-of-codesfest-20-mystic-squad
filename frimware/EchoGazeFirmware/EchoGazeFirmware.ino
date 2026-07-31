@@ -12,7 +12,6 @@ volatile int currentDoubleBlinkWindowMs = DEFAULT_DOUBLE_BLINK_WINDOW_MS;
 
 QueueHandle_t wsEventQueue;
 QueueHandle_t firebaseQueue;
-QueueHandle_t customMsgQueue;
 
 // Setup (Runs on Core 1 once at boot)
 
@@ -23,8 +22,7 @@ void setup() {
     // Initialize Queues
     wsEventQueue = xQueueCreate(10, sizeof(EventType));
     firebaseQueue = xQueueCreate(10, sizeof(EventType));
-    customMsgQueue = xQueueCreate(5, sizeof(CustomMsg));
-
+    
     // Initialize Hardware Subsystems
     setupFeedback();
 

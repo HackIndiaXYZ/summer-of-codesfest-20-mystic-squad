@@ -124,35 +124,6 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
     }
 }
 
-static void syncCustomToFirebase(const CustomMsg& msg, unsigned long timestamp) {
-    if (WiFi.status() == WL_CONNECTED) {
-        authenticateFirebase();
-        if (idToken == "") return;
-        
-        HTTPClient http;
-        String fullUrl = String(FIREBASE_BASE_URL) + "/users/" + getHardwareId() + "/commands.json?auth=" + idToken;
-        http.begin(fullUrl);
-        http.addHeader("Content-Type", "application/json");
-
-        StaticJsonDocument<512> doc;
-        doc["event"] = "custom_message";
-        
-        JsonObject tsObj = doc.createNestedObject("timestamp");
-        tsObj[".sv"] = "timestamp";
-        
-        doc["device_id"] = getHardwareId();
-        doc["phrase"] = msg.phrase;
-        doc["category"] = msg.category;
-        doc["emoji"] = msg.emoji;
-        doc["status"] = "COMPLETED";
-
-        String payload;
-        serializeJson(doc, payload);
-
-        http.POST(payload);
-        http.end();
-    }
-}
 
 void syncDeviceStatus() {
     if (WiFi.status() == WL_CONNECTED) {
@@ -202,10 +173,6 @@ void firebaseTask(void *pvParameters) {
             }
         }
         
-        CustomMsg msg;
-        if (xQueueReceive(customMsgQueue, &msg, 0) == pdPASS) {
-            syncCustomToFirebase(msg, millis());
-        }
         
         if (millis() - lastStatusSync >= 30000) {
             syncDeviceStatus();

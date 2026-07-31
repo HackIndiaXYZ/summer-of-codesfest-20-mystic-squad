@@ -34,12 +34,6 @@ static void handleWebSocketMessage(uint8_t *payload, size_t length) {
             currentDebounceMs = doc["value"];
         } else if (cmd == "set_scan_speed") {
             currentDoubleBlinkWindowMs = doc["value"];
-        } else if (cmd == "custom") {
-            CustomMsg msg;
-            strlcpy(msg.phrase, doc["phrase"] | "", sizeof(msg.phrase));
-            strlcpy(msg.category, doc["category"] | "General", sizeof(msg.category));
-            strlcpy(msg.emoji, doc["emoji"] | "", sizeof(msg.emoji));
-            xQueueSend(customMsgQueue, &msg, 0);
         }
     }
 }
