@@ -218,6 +218,8 @@ export default function Dashboard() {
                                     statusData.status === "Normal Request" ? "bg-yellow-500/20 border-yellow-500/50" : 
                                     "bg-green-500/10 border-green-500/30";
                     const textColor = statusData.status === "Emergency" ? "text-red-400" : 
+                                      statusData.status === "Normal Request" ? "text-yellow-400" : 
+                                      "text-green-400";
                     const glow = statusData.status === "Emergency" ? "group-hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]" : 
                                  statusData.status === "Normal Request" ? "group-hover:shadow-[0_0_20px_rgba(234,179,8,0.2)]" : 
                                  "group-hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]";
