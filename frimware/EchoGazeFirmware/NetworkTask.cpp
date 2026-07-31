@@ -27,7 +27,7 @@ static void broadcastWebSocket(const String& message) {
 }
 
 static void handleWebSocketMessage(uint8_t *payload, size_t length) {
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<512> doc;
     if (deserializeJson(doc, payload, length) == DeserializationError::Ok) {
         String cmd = doc["cmd"];
         if (cmd == "set_debounce") {

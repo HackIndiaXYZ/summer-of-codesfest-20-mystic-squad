@@ -134,7 +134,7 @@ static void syncCustomToFirebase(const CustomMsg& msg, unsigned long timestamp) 
         http.begin(fullUrl);
         http.addHeader("Content-Type", "application/json");
 
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<512> doc;
         doc["event"] = "custom_message";
         
         JsonObject tsObj = doc.createNestedObject("timestamp");
