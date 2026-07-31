@@ -3,16 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Eye, LayoutGrid, MousePointerClick, AlertTriangle, Cpu, Wifi, Cloud, LayoutDashboard, Check, X, ArrowRight, Star, Coffee, Heart } from 'lucide-react';
 import ScrollVideoDemo from '@/components/ScrollVideoDemo';
+import Logo from '@/components/Logo';
 
 const BG_IMAGE_1 = "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260713_140344_79e1296a-86d7-43fd-9b5f-63ffe560f291.png&w=1280&q=85";
 const FRONT_VIDEO = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260713_162101_0d7498c5-29bb-47bf-a99f-2773c0a880a9.mp4";
 const OVERLAY_IMAGE = "https://soft-zoom-63098134.figma.site/_assets/v11/3f10f1876e118f72a396e05a6c2d099569478272.png";
 
-const Logo = () => (
-  <svg viewBox="0 0 256 256" className="w-[28px] h-[28px] fill-white">
-    <path d="M 256 64 L 256 128 L 192.5 128 L 160 95 L 128 64 L 96 95 L 63.5 128 L 64 128 L 128 192 L 128 256 L 64.5 256 L 32 223 L 0 192 L 0 64 L 64 0 L 192 0 Z M 256 192 L 256 256 L 192.5 256 L 160 223 L 128 192 L 128 128 L 192 128 Z" />
-  </svg>
-);
+
 
 const MobileMenu = ({ isOpen, onClose }) => {
   const [mounted, setMounted] = useState(false);
@@ -243,7 +240,10 @@ const Footer = () => (
       
       {/* Brand & Bio */}
       <div className="space-y-6 col-span-2 sm:col-span-4 md:col-span-5 lg:col-span-4">
-        <h4 className="text-5xl tracking-tight text-white mb-2" style={{ fontFamily: "'Instrument Serif', serif" }}>EchoGaze.</h4>
+        <div className="flex items-center gap-3 mb-2">
+          <Logo className="w-8 h-8 fill-white" />
+          <h4 className="text-5xl tracking-tight text-white" style={{ fontFamily: "'Instrument Serif', serif" }}>EchoGaze.</h4>
+        </div>
         <p className="text-white/50 leading-relaxed font-light">
           Restoring a voice to the silent. An open-source, sub-$30 AAC solution using standard micro-movements.
         </p>
@@ -274,33 +274,7 @@ const Footer = () => (
         </ul>
       </div>
 
-      {/* Support CTA */}
-      <div className="space-y-4 col-span-2 sm:col-span-4 md:col-span-4 lg:col-span-3 lg:col-start-10 mt-6 md:mt-0">
-        <h4 className="font-bold text-white tracking-tight flex items-center gap-2">
-          <Coffee className="w-5 h-5 text-amber-500" />
-          Support EchoGaze
-        </h4>
-        <p className="text-sm text-white/50 leading-relaxed mb-4 font-light">
-          If this open-source accessibility tech made an impact, please consider supporting. It truly keeps the dream alive! 🙏
-        </p>
-        <div className="space-y-3">
-          <a href="https://buymeacoffee.com/johnvarghese" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 w-full py-3 px-4 bg-[#FFDD00] text-black font-bold rounded-xl hover:bg-[#FFDD00]/90 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-[#FFDD00]/10 border border-[#FFDD00]/50">
-            <Coffee className="w-5 h-5 fill-current" />
-            Buy me a coffee
-          </a>
-          <div className="grid grid-cols-3 gap-2">
-            <a href="https://patreon.com/johnvarghese" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center py-2 px-1 bg-[#FF424D] text-white font-medium rounded-lg hover:bg-[#FF424D]/90 transition-all hover:scale-[1.02] active:scale-95 text-[11px] sm:text-xs border border-[#FF424D]/50">
-              Patreon
-            </a>
-            <a href="https://github.com/sponsors/John-Varghese-EH" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center py-2 px-1 bg-white text-black font-medium rounded-lg hover:opacity-90 transition-all hover:scale-[1.02] active:scale-95 text-[11px] sm:text-xs border border-white/50">
-              GitHub
-            </a>
-            <a href="upi://pay?pa=johnvarghese@noxpay" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center py-2 px-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:opacity-90 transition-all hover:scale-[1.02] active:scale-95 text-[11px] sm:text-xs border border-blue-500/50">
-              NoxPay
-            </a>
-          </div>
-        </div>
-      </div>
+      {/* Support CTA (Removed) */}
     </div>
     
     {/* Copyright */}

@@ -178,9 +178,10 @@ export default function Dashboard() {
         <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-fade-up">
           
           {/* Dashboard Header */}
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pt-10 md:pt-0">
-            <div>
-              <h1 className="text-2xl font-semibold text-zinc-100 mb-1 tracking-tight">
+          <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pt-10 md:pt-0 pb-4 border-b border-white/5">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-lg opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none"></div>
+              <h1 className="relative text-3xl font-bold text-zinc-100 mb-1 tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {activeTab === "overview" && "Patient Monitoring & Admin Dashboard"}
                 {activeTab === "analytics" && "AI Intent & Clinical Vitals"}
                 {activeTab === "devices" && "Connected Devices & Hardware"}
@@ -217,13 +218,20 @@ export default function Dashboard() {
                                     statusData.status === "Normal Request" ? "bg-yellow-500/20 border-yellow-500/50" : 
                                     "bg-green-500/10 border-green-500/30";
                     const textColor = statusData.status === "Emergency" ? "text-red-400" : 
-                                      statusData.status === "Normal Request" ? "text-yellow-400" : 
-                                      "text-green-400";
+                    const glow = statusData.status === "Emergency" ? "group-hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]" : 
+                                 statusData.status === "Normal Request" ? "group-hover:shadow-[0_0_20px_rgba(234,179,8,0.2)]" : 
+                                 "group-hover:shadow-[0_0_20px_rgba(34,197,94,0.1)]";
+
                     return (
-                      <div key={pId} className={`p-4 rounded-xl border ${bgColor} flex items-center justify-between`}>
-                        <div>
-                          <h3 className="font-medium text-zinc-200">Patient UID: {pId.slice(0,6)}...</h3>
-                          <p className={`text-sm ${textColor}`}>Status: {statusData.status}</p>
+                      <div key={pId} className={`group p-5 rounded-2xl border ${bgColor} ${glow} flex flex-col justify-between transition-all duration-500 hover:-translate-y-1 hover:bg-opacity-30 relative overflow-hidden`}>
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-zinc-100 text-lg">Patient: {pId.slice(0,6)}</h3>
+                          <div className={`w-2 h-2 rounded-full ${statusData.status === "Emergency" ? "bg-red-500 animate-pulse" : statusData.status === "Normal Request" ? "bg-yellow-500" : "bg-green-500"}`}></div>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between">
+                          <p className={`text-sm font-medium ${textColor} px-2 py-1 bg-black/20 rounded-md backdrop-blur-sm inline-block`}>{statusData.status}</p>
+                          <span className="text-xs text-zinc-500 group-hover:text-zinc-400 transition-colors">View Details &rarr;</span>
                         </div>
                       </div>
                     );
@@ -231,8 +239,9 @@ export default function Dashboard() {
                 </div>
               )}
               {/* Live Feed */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 flex flex-col max-h-[700px]">
-                <div className="flex justify-between items-center mb-6">
+              <div className="group bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-6 md:p-8 flex flex-col max-h-[700px] transition-colors duration-500 relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent pointer-events-none group-hover:via-blue-500/40 transition-all duration-700"></div>
+                <div className="flex justify-between items-center mb-6 relative z-10">
                   <h2 className="text-base font-medium text-zinc-200 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     Live Request Feed
