@@ -86,23 +86,8 @@ static void syncToFirebase(const char* command, unsigned long timestamp) {
             doc["category"] = "Emergency";
             doc["emoji"] = "🚨";
             doc["status"] = "EMERGENCY";
-        } else if (cmdStr == "single_click") {
-            doc["phrase"] = "Patient wants water";
-            doc["category"] = "Grid";
-            doc["emoji"] = "💧";
-            doc["status"] = "COMPLETED";
-        } else if (cmdStr == "double_click") {
-            doc["phrase"] = "Patient needs to use washroom";
-            doc["category"] = "Grid";
-            doc["emoji"] = "🚽";
-            doc["status"] = "COMPLETED";
-        } else if (cmdStr == "triple_click") {
-            doc["phrase"] = "Patient wants food";
-            doc["category"] = "Grid";
-            doc["emoji"] = "🍲";
-            doc["status"] = "COMPLETED";
         } else {
-            return; // Only sync specific mapped commands to Firebase
+            return; // Only sync emergency_sos natively, UI handles grid selections
         }
 
         String payload;
