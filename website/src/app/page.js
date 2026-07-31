@@ -70,8 +70,9 @@ const RevealText = ({ text, delay = 0, className = "", as: Component = "div" }) 
       });
     }, { threshold: 0.1, rootMargin: "0px 0px -100px 0px" });
     
-    if (domRef.current) observer.observe(domRef.current);
-    return () => domRef.current && observer.disconnect();
+    const currentRef = domRef.current;
+    if (currentRef) observer.observe(currentRef);
+    return () => currentRef && observer.disconnect();
   }, []);
 
   const words = text.split(" ");
@@ -107,8 +108,9 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
       });
     }, { threshold: 0.1, rootMargin: "0px 0px -100px 0px" });
     
-    if (domRef.current) observer.observe(domRef.current);
-    return () => domRef.current && observer.disconnect();
+    const currentRef = domRef.current;
+    if (currentRef) observer.observe(currentRef);
+    return () => currentRef && observer.disconnect();
   }, []);
 
   return (
@@ -130,9 +132,9 @@ const PremiumCard = ({ children, className = "", delay = 0 }) => {
         observer.unobserve(entries[0].target);
       }
     }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
-    
-    if (cardRef.current) observer.observe(cardRef.current);
-    return () => cardRef.current && observer.disconnect();
+    const currentRef = cardRef.current;
+    if (currentRef) observer.observe(currentRef);
+    return () => currentRef && observer.disconnect();
   }, []);
 
   const handleMouseMove = (e) => {
@@ -397,7 +399,7 @@ export default function Home() {
             Restoring a voice to the silent.
           </p>
         </div>
-
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={OVERLAY_IMAGE} alt="" className="absolute inset-0 z-25 w-full h-full object-cover pointer-events-none" />
 
         <div ref={videoWrapperRef} className="absolute inset-0 z-30 pointer-events-none" style={{ clipPath: 'inset(40% 0 0 0)' }}>

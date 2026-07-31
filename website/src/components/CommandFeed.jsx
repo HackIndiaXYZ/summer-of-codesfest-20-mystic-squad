@@ -40,9 +40,8 @@ export default function CommandFeed({ commands = [], loading = false }) {
         const isGrid = cmd.category === "Grid";
         const pulseClass = pulseId === cmd.id ? "ring-2 ring-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]" : "";
         
-        // Extract what they want from the phrase if it's a grid item (e.g. "Water", "Food")
+        // Use the exact phrase sent from the device
         const phrase = cmd.phrase || "";
-        const wantedItem = phrase.replace(/^Patient wants /i, "").replace(/^I need /i, "").replace(/^Please provide /i, "");
 
         return (
           <div
@@ -80,8 +79,7 @@ export default function CommandFeed({ commands = [], loading = false }) {
               <div className="mt-1">
                 {isGrid ? (
                   <p className="text-zinc-300 text-sm leading-relaxed">
-                    <strong className="text-white">Request:</strong> This person wants <span className="font-semibold text-blue-400">{wantedItem.toLowerCase()}</span>. 
-                    Please provide them with the requested item, and check their room (Room 302, Bed A) and patient information.
+                    <strong className="text-white">Patient Request:</strong> <span className="font-semibold text-blue-400">{phrase}</span>
                   </p>
                 ) : (
                   <p className={`text-sm leading-relaxed ${isEmergency ? "text-red-200 font-medium" : "text-zinc-300"}`}>

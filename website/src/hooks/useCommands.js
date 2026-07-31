@@ -50,7 +50,9 @@ export function useCommands(assignedPatientIds = [], isAdmin = false) {
           }
         });
         
-        allCommands.sort((a, b) => b.timestamp - a.timestamp);
+        allCommands.sort((a, b) => {
+          return b.id.localeCompare(a.id);
+        });
         // Only keep the absolute latest 100 commands for the UI
         setCommands(allCommands.slice(0, 100));
         setLoading(false);
@@ -70,7 +72,8 @@ export function useCommands(assignedPatientIds = [], isAdmin = false) {
 
     assignedPatientIds.forEach(pId => {
       const commandsRef = ref(database, `users/${pId}/commands`);
-      const q = query(commandsRef, orderByChild('timestamp'), limitToLast(50));
+      // Sort natively by Firebase Push ID which is chronological, avoiding missing timestamp bugs
+      const q = query(commandsRef, limitToLast(50));
       
       const unsubscribe = onValue(q, (snapshot) => {
         if (snapshot.exists()) {
@@ -96,7 +99,9 @@ export function useCommands(assignedPatientIds = [], isAdmin = false) {
         Object.values(aggregatedCommands).forEach(cmds => {
           allCommands = [...allCommands, ...cmds];
         });
-        allCommands.sort((a, b) => b.timestamp - a.timestamp);
+        allCommands.sort((a, b) => {
+          return b.id.localeCompare(a.id);
+        });
         
         setCommands(allCommands);
         setLoading(false);
@@ -107,7 +112,7 @@ export function useCommands(assignedPatientIds = [], isAdmin = false) {
     return () => {
       unsubs.forEach(unsub => unsub());
     };
-  }, [user, isAdmin, assignedPatientIds.join(',')]);
+  }, [user, isAdmin, assignedPatientIds]);
 
   return { commands, loading };
 }

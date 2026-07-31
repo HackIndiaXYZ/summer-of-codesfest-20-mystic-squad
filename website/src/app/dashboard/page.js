@@ -125,16 +125,16 @@ export default function Dashboard() {
     if (normalPatients.length > 0) {
       const latestNormal = normalPatients.sort((a,b) => b.latestCmd.timestamp - a.latestCmd.timestamp)[0].latestCmd;
       
-      if (latestNormal.id !== lastSeenNormalId && (Date.now() - latestNormal.timestamp < 60000)) {
+      // Use Firebase Push ID native chronological sorting to avoid timestamp bugs
+      if (latestNormal.id !== lastSeenNormalId) {
         setLastSeenNormalId(latestNormal.id);
         
-        const rawPhrase = latestNormal.phrase || "";
-        const item = rawPhrase.replace(/^Patient wants /i, "").replace(/^I need /i, "").replace(/^Please provide /i, "").trim();
+        const rawPhrase = latestNormal.phrase || "assistance";
         const patientId = latestNormal.device_id || "Unknown";
         
         setToast({ 
           type: "info", 
-          message: `Patient ${patientId.substring(0, 8)} in Room 302 wants ${item}. Please provide him with that particular item.` 
+          message: `Patient ${patientId.substring(0, 8)} in Room 302 requested: "${rawPhrase}"` 
         });
       }
     }
